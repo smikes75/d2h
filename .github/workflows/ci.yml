@@ -1,0 +1,31 @@
+name: CI
+
+# Fast safety net on every push/PR: the core library and CLI must always
+# compile and pass tests. (The Tauri GUI is compiled by the manual
+# "Build Windows" workflow — it needs platform WebView dependencies.)
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: d2h-rust
+
+      - name: Run tests
+        run: cargo test
+        working-directory: d2h-rust
+
+      - name: Check CLI release build
+        run: cargo check --release
+        working-directory: d2h-rust

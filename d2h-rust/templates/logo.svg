@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="76" viewBox="0 0 280 76">
+  <!-- Mark = exact icon geometry (icons-src/icon.svg), scaled and centered at (38,38) -->
+  <g transform="translate(38,38) scale(0.0815) translate(-512,-512)">
+    <g fill="none" stroke-linecap="butt">
+      <path d="M 512 200 A 312 312 0 0 1 810 420" stroke="#ffffff" stroke-width="88"/>
+      <path d="M 822 480 A 312 312 0 0 1 700 770" stroke="#F0912D" stroke-width="88"/>
+      <path d="M 640 806 A 312 312 0 0 1 330 750" stroke="#ffffff" stroke-width="88"/>
+      <path d="M 285 705 A 312 312 0 0 1 215 440" stroke="#ffffff" stroke-width="88"/>
+    </g>
+    <path d="M352 430 h120 l40 -40 h160 a30 30 0 0 1 30 30 v190 a30 30 0 0 1 -30 30 h-320 a30 30 0 0 1 -30 -30 v-150 z" fill="#ffffff"/>
+  </g>
+  <text x="82" y="53" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="42" fill="#ffffff">D<tspan fill="#F0912D">2</tspan>H</text>
+</svg>

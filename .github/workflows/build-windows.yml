@@ -1,0 +1,53 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            d2h-rust
+            d2h-rust/src-tauri
+
+      - name: Cache tauri-cli
+        id: cache-tauri-cli
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-tauri.exe
+          key: tauri-cli-2-${{ runner.os }}
+
+      - name: Install Tauri CLI
+        if: steps.cache-tauri-cli.outputs.cache-hit != 'true'
+        run: cargo install tauri-cli --version "^2"
+
+      - name: Run tests
+        run: cargo test
+        working-directory: d2h-rust
+
+      # NSIS only — the MSI/WiX bundler rejects pre-release versions
+      # like "1.6.0-beta" (identifier must be numeric-only)
+      - name: Build Tauri app
+        run: cargo tauri build --bundles nsis
+        working-directory: d2h-rust
+
+      - name: Upload NSIS installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: D2H-windows-nsis
+          path: d2h-rust/src-tauri/target/release/bundle/nsis/*.exe
+
+      - name: Upload portable EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: D2H-windows-portable
+          path: d2h-rust/src-tauri/target/release/d2h-gui.exe

@@ -1,0 +1,28 @@
+{
+  "_comment": "Example D2H configuration. Copy as 'd2h.config.json' next to the executable, or to %APPDATA%\\d2h\\config.json (Windows) / ~/.config/d2h/config.json (macOS, Linux). Every key is optional.",
+  "branding": {
+    "logoPath": "C:\\path\\to\\your-logo.png",
+    "headerBackground": "linear-gradient(45deg, #0a3d62 75%, #d63031 100%)",
+    "footerText": "ACME Data Recovery",
+    "footerUrl": "https://example.com",
+    "showFooter": true
+  },
+  "defaults": {
+    "language": "en",
+    "theme": "default",
+    "webOutputDir": "D:\\Output\\Web",
+    "htmlOutputDir": "D:\\Output\\Html"
+  },
+  "jobId": {
+    "pattern": "JOB-\\d{4}",
+    "warnPattern": "JOB-.*",
+    "description": "JOB-0000 … JOB-9999",
+    "rules": [
+      {
+        "match": "^JOB-\\d{4}",
+        "language": "en",
+        "webOutputDir": "D:\\Output\\Web"
+      }
+    ]
+  }
+}

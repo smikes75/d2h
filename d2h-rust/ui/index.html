@@ -1,0 +1,2424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D2H — Directory to HTML</title>
+    <style>
+        /* === D2H GUI Design === */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #f0f2f5;
+            --panel-bg: #ffffff;
+            --header-bg: #1a1a2e;
+            --accent: #16697a;
+            --accent-hover: #1a7f94;
+            --accent-soft: #eef6f8;
+            --text: #212529;
+            --text-secondary: #6c757d;
+            --border: #dee2e6;
+            --input-bg: #f8f9fa;
+            --success: #28a745;
+            --error: #dc3545;
+        }
+
+        html, body { height: 100%; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-size: 14px;
+            color: var(--text);
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Header --- */
+        .gui-header {
+            background: var(--header-bg);
+            color: white;
+            padding: 0 24px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .gui-header h1 {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            cursor: pointer;
+        }
+        .gui-header .version {
+            font-size: 11px;
+            opacity: 0.5;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+        .about-box { text-align: center; }
+        .about-box .about-icon svg { display: block; margin: 0 auto 10px; }
+        .about-box .about-name { font-size: 20px; font-weight: 700; margin-bottom: 2px; }
+        .about-box .about-version { font-size: 12px; color: var(--text-dim, #777); margin-bottom: 14px; }
+        .about-box .about-line { font-size: 13px; margin: 4px 0; }
+        .about-box .about-link { color: var(--accent); cursor: pointer; text-decoration: underline; }
+        .about-box .about-donate { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.08); }
+        .about-box .about-qr svg { display: block; margin: 8px auto 2px; border: 1px solid rgba(0,0,0,0.12); border-radius: 6px; }
+        .about-box .about-qr-hint { font-size: 11px; color: var(--text-dim, #777); }
+
+        /* --- Language dropdown --- */
+        .lang-switch {
+            margin-left: auto;
+            position: relative;
+        }
+        .lang-btn {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.22);
+            border-radius: 4px;
+            color: #fff;
+            padding: 4px 9px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: inherit;
+            letter-spacing: 0.5px;
+            transition: background 0.15s;
+        }
+        .lang-btn:hover { background: rgba(255,255,255,0.18); }
+        .lang-flag { display: flex; align-items: center; }
+        .lang-flag svg { display: block; }
+        .lang-caret { font-size: 9px; opacity: 0.7; }
+        .lang-menu {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.28);
+            min-width: 160px;
+            z-index: 10000;
+            padding: 4px 0;
+        }
+        .lang-item {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 7px 14px;
+            font-size: 13px;
+            color: var(--text);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .lang-item:hover { background: var(--input-bg); }
+        .lang-item.active { background: var(--accent-soft); font-weight: 600; }
+        .lang-item .lang-flag svg { display: block; }
+
+        /* --- Customize (gear) button --- */
+        .gear-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 8px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.22);
+            border-radius: 4px;
+            color: #fff;
+            padding: 4px 7px;
+            height: 26px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .gear-btn:hover { background: rgba(255,255,255,0.18); }
+        .gear-btn svg { display: block; }
+
+        /* --- Customize modal extras --- */
+        .cust-field { margin-bottom: 12px; }
+        .cust-field > label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .cust-row { display: flex; gap: 6px; align-items: center; }
+        .cust-row input[type="color"] {
+            width: 44px;
+            height: 30px;
+            padding: 2px;
+            border: 1px solid var(--border);
+            background: var(--input-bg);
+            cursor: pointer;
+        }
+        .cust-note {
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            margin: 4px 0 16px;
+        }
+        .btn-clear {
+            padding: 7px 10px;
+            font-size: 13px;
+            line-height: 1;
+        }
+
+        /* --- Main Layout --- */
+        .gui-main {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            gap: 1px;
+            background: var(--border);
+        }
+
+        /* --- Left Panel: Configuration --- */
+        .config-panel {
+            width: 380px;
+            min-width: 320px;
+            background: var(--panel-bg);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .config-section {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        .config-section:last-child { border-bottom: none; }
+
+        .config-section h2 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        /* --- Form Elements --- */
+        .field {
+            margin-bottom: 10px;
+        }
+        .field:last-child { margin-bottom: 0; }
+
+        .field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .field-row {
+            display: flex;
+            gap: 6px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 7px 10px;
+            font-size: 13px;
+            font-family: inherit;
+            border: 1px solid var(--border);
+            background: var(--input-bg);
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus {
+            border-color: var(--accent);
+        }
+        input[type="text"]::placeholder {
+            color: #adb5bd;
+        }
+
+        select.d2h-select {
+            width: 100%;
+            padding: 7px 10px;
+            font-size: 13px;
+            font-family: inherit;
+            border: 1px solid var(--border);
+            background: var(--input-bg);
+            color: var(--text);
+            outline: none;
+        }
+
+        .btn {
+            padding: 7px 14px;
+            font-size: 13px;
+            font-family: inherit;
+            font-weight: 500;
+            border: 1px solid var(--border);
+            background: var(--panel-bg);
+            color: var(--text);
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .btn:hover {
+            background: var(--input-bg);
+            border-color: #adb5bd;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            font-weight: 600;
+        }
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+        .btn-primary:disabled {
+            background: #adb5bd;
+            border-color: #adb5bd;
+            cursor: not-allowed;
+        }
+
+        .btn-full {
+            width: 100%;
+            padding: 10px 14px;
+            font-size: 14px;
+        }
+
+        /* --- Drop zone --- */
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 6px;
+            background: var(--input-bg);
+            padding: 16px 12px 12px;
+            text-align: center;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .drop-zone:hover { border-color: #adb5bd; }
+        .drop-zone.dragging {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+        }
+        .drop-zone .drop-icon {
+            font-size: 24px;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        .drop-zone .drop-text {
+            font-size: 12.5px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .drop-zone input[type="text"] {
+            margin-top: 10px;
+            font-size: 12px;
+            background: var(--panel-bg);
+        }
+
+        /* --- Format cards --- */
+        .format-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .format-card {
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 30px 10px 12px;
+            background: var(--panel-bg);
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+            user-select: none;
+        }
+        .format-card:hover {
+            border-color: #adb5bd;
+            background: var(--input-bg);
+        }
+        .format-card.selected {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+            box-shadow: inset 0 0 0 1px var(--accent);
+        }
+        .format-card .format-icon { font-size: 18px; line-height: 1.3; }
+        .format-card .format-title { font-size: 13px; font-weight: 600; }
+        .format-card .format-desc {
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+            line-height: 1.35;
+        }
+        .format-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+        @keyframes format-card-shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+        .format-card.shake { animation: format-card-shake 0.25s ease-in-out; }
+
+        /* --- Advanced (collapsible) --- */
+        details.advanced summary {
+            cursor: pointer;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            user-select: none;
+            list-style: none;
+        }
+        details.advanced summary::-webkit-details-marker { display: none; }
+        details.advanced summary::before {
+            content: "\25B8";
+            display: inline-block;
+            margin-right: 6px;
+            transition: transform 0.15s;
+        }
+        details.advanced[open] summary::before { transform: rotate(90deg); }
+        details.advanced summary:hover { color: var(--text); }
+        details.advanced[open] summary { margin-bottom: 12px; }
+
+        /* --- Toggles --- */
+        .toggle-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .toggle input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        /* --- Progress bar (inside status card) --- */
+        .progress-bar-wrapper {
+            height: 4px;
+            background: #e9ecef;
+            margin-top: 10px;
+            overflow: hidden;
+            border-radius: 2px;
+        }
+        .progress-bar {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.3s;
+            width: 0%;
+        }
+        .progress-bar.indeterminate {
+            width: 30%;
+            animation: progress-slide 1.2s ease-in-out infinite;
+        }
+        @keyframes progress-slide {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+        }
+
+        /* --- Dialog Modal --- */
+        .dialog-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dialog-box {
+            background: var(--panel-bg);
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            padding: 24px;
+            min-width: 400px;
+            max-width: 520px;
+        }
+        .dialog-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+        .dialog-message {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            line-height: 1.5;
+            white-space: pre-line;
+        }
+        .dialog-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        .dialog-buttons .btn { min-width: 90px; }
+        .dialog-buttons .btn.btn-warning {
+            background: var(--error);
+            color: #fff;
+            border-color: var(--error);
+        }
+        .dialog-buttons .btn.btn-warning:hover {
+            background: #c82333;
+        }
+        .dialog-buttons .btn.btn-primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+        .dialog-buttons .btn.btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        /* --- Right Panel: Status + Log --- */
+        .preview-panel {
+            flex: 1;
+            background: var(--panel-bg);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .status-wrap {
+            padding: 14px;
+            flex-shrink: 0;
+        }
+        .status-card {
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 4px;
+            background: var(--input-bg);
+            padding: 14px 16px;
+        }
+        .status-card.idle {
+            border-left-color: var(--border);
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        .status-card.success {
+            border-left-color: var(--accent);
+            background: #eef5f6;
+            border-color: #cfe3e6;
+        }
+        .status-card.error {
+            border-left-color: var(--error);
+            background: #fdf1f3;
+            border-color: #f8bbd0;
+        }
+        .status-title {
+            font-size: 17px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .status-card.success .status-title { color: var(--accent); }
+        .status-card.error .status-title { color: var(--error); }
+        .status-line { font-size: 13px; margin-bottom: 3px; word-break: break-all; }
+        .status-line.warn { color: #e65100; font-weight: 600; }
+        .status-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+        .status-progress {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+        }
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #cdd6dd;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            flex-shrink: 0;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #progress-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* --- Log (collapsible) --- */
+        .log-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            border-top: 1px solid var(--border);
+        }
+        .log-header {
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            background: var(--input-bg);
+            cursor: pointer;
+            user-select: none;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .log-header:hover { color: var(--text); }
+        .log-chevron {
+            display: inline-block;
+            transition: transform 0.15s;
+            font-size: 10px;
+        }
+        .log-section.open .log-chevron { transform: rotate(90deg); }
+        .log-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 14px;
+            font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+            font-size: 12px;
+            background: #1e1e2e;
+            color: #cdd6f4;
+            display: none;
+        }
+        .log-section.open .log-content { display: block; }
+        .log-line { margin-bottom: 2px; white-space: pre-wrap; word-break: break-all; }
+        .log-line.warning { color: #f9e2af; }
+        .log-line.error { color: #f38ba8; }
+        .log-line.success { color: #a6e3a1; }
+        .log-line.info { color: #89b4fa; }
+    </style>
+</head>
+<body>
+    <div class="gui-header">
+        <h1 id="app-title" data-i18n-title="about" title="About">D2H</h1>
+        <span class="version" id="app-version" data-i18n-title="about" title="About">v1.6.1-beta</span>
+        <div class="lang-switch" id="lang-switch">
+            <button class="lang-btn" id="lang-btn" aria-haspopup="listbox">
+                <span class="lang-flag" id="lang-flag"></span>
+                <span id="lang-code">EN</span>
+                <span class="lang-caret">&#9662;</span>
+            </button>
+            <div class="lang-menu" id="lang-menu" style="display:none"></div>
+        </div>
+        <button class="gear-btn" id="btn-customize" data-i18n-title="customize" title="Customize" aria-haspopup="dialog">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </button>
+    </div>
+
+    <div class="gui-main">
+        <!-- Left Panel: Configuration -->
+        <div class="config-panel">
+            <div class="config-section">
+                <h2 data-i18n="sectionSource" data-i18n-num="1">Source</h2>
+                <div class="field">
+                    <label data-i18n="dirToScan">Directory to scan</label>
+                    <div class="drop-zone" id="drop-zone">
+                        <div class="drop-icon">&#128193;</div>
+                        <div class="drop-text">
+                            <span data-i18n="dropHint">Drop a folder here or</span>
+                            <button class="btn" id="btn-browse-dir" data-i18n="browse">Browse</button>
+                        </div>
+                        <input type="text" id="input-dir" readonly>
+                    </div>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h2 data-i18n="sectionOutput" data-i18n-num="2">Output</h2>
+                <div class="field">
+                    <label data-i18n="outputFormat">Output format</label>
+                    <div class="format-cards">
+                        <div class="format-card" id="card-web" role="checkbox" aria-checked="false" tabindex="0">
+                            <div class="format-icon">&#127760;</div>
+                            <div class="format-info">
+                                <div class="format-title" data-i18n="webCardTitle">Web package (.tar.gz)</div>
+                                <div class="format-desc" data-i18n="webCardDesc">Upload to your server, send the customer a link</div>
+                            </div>
+                        </div>
+                        <div class="format-card selected" id="card-html" role="checkbox" aria-checked="true" tabindex="0">
+                            <div class="format-icon">&#128196;</div>
+                            <div class="format-info">
+                                <div class="format-title" data-i18n="htmlCardTitle">Single HTML file</div>
+                                <div class="format-desc" data-i18n="htmlCardDesc">One file &mdash; send as an e-mail attachment</div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Hidden checkboxes kept in sync with the cards; the rest of the logic reads these. -->
+                    <div hidden aria-hidden="true" style="display:none !important">
+                        <input type="checkbox" id="opt-web">
+                        <input type="checkbox" id="opt-html" checked>
+                    </div>
+                </div>
+                <div class="field" id="field-web-output" style="display:none">
+                    <label data-i18n="webOutputDir">Web output directory</label>
+                    <div class="field-row">
+                        <input type="text" id="input-web-output" data-i18n-placeholder="webOutputDir">
+                        <button class="btn" id="btn-browse-web-output" data-i18n="browse">Browse</button>
+                    </div>
+                </div>
+                <div class="field" id="field-html-output">
+                    <label data-i18n="htmlOutputDir">HTML output directory</label>
+                    <div class="field-row">
+                        <input type="text" id="input-html-output" data-i18n-placeholder="htmlOutputDir">
+                        <button class="btn" id="btn-browse-html-output" data-i18n="browse">Browse</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label data-i18n="catalogLanguage">Catalog language (for the customer)</label>
+                    <select id="opt-lang" class="d2h-select">
+                        <option value="en" selected>English</option>
+                        <option value="cz">&#268;e&#353;tina</option>
+                        <option value="de">Deutsch</option>
+                        <option value="it">Italiano</option>
+                        <option value="es">Espa&ntilde;ol</option>
+                        <option value="fr">Fran&ccedil;ais</option>
+                        <option value="pl">Polski</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <details class="advanced" id="advanced-section">
+                    <summary data-i18n="advanced">Advanced</summary>
+                    <div class="field">
+                        <label data-i18n="titleOptional">Title (optional)</label>
+                        <input type="text" id="input-title" data-i18n-placeholder="titlePlaceholder" placeholder="Source directory name used if empty">
+                    </div>
+                    <div class="field">
+                        <label data-i18n="theme">Theme</label>
+                        <select id="opt-theme" class="d2h-select">
+                            <option value="default" selected>Default</option>
+                            <option value="nologo">No Logo</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <div class="toggle-group">
+                            <label class="toggle">
+                                <input type="checkbox" id="opt-hidden">
+                                <span data-i18n="optHidden">Include hidden files</span>
+                            </label>
+                            <label class="toggle">
+                                <input type="checkbox" id="opt-zero-size">
+                                <span data-i18n="optZeroSize">Include zero-size files</span>
+                            </label>
+                            <label class="toggle">
+                                <input type="checkbox" id="opt-empty-dirs">
+                                <span data-i18n="optEmptyDirs">Include empty directories</span>
+                            </label>
+                            <label class="toggle">
+                                <input type="checkbox" id="opt-symlinks">
+                                <span data-i18n="optSymlinks">Follow symbolic links</span>
+                            </label>
+                            <label class="toggle">
+                                <input type="checkbox" id="opt-packages">
+                                <span data-i18n="optPackages">Show packages as directories</span>
+                            </label>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div class="config-section" style="margin-top: auto;">
+                <h2 data-i18n="generate" data-i18n-num="3">Generate</h2>
+                <button class="btn btn-primary btn-full" id="btn-generate" data-i18n="generate" disabled>
+                    Generate
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Panel: Status + Log -->
+        <div class="preview-panel">
+            <div class="status-wrap">
+                <div class="status-card idle" id="status-card"></div>
+            </div>
+            <div class="log-section open" id="log-section">
+                <div class="log-header" id="log-header">
+                    <span class="log-chevron">&#9654;</span>
+                    <span data-i18n="details">Details</span>
+                </div>
+                <div class="log-content" id="log-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Tauri v2 API with robust initialization ---
+        var invoke = null;
+        var generating = false;
+        var lastOutputDir = null;
+        var webOutputManuallySet = false;
+        var htmlOutputManuallySet = false;
+        var catalogLangManuallySet = false;
+        var appConfig = null; // loaded from d2h.config.json via get_config
+        var dragDropSetupDone = false;
+
+        // =====================================================================
+        // UI internationalization
+        // =====================================================================
+
+        var FLAG_SVG = {
+            en: '<svg width="20" height="14" viewBox="0 0 20 14" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="14" fill="#012169"/><path d="M0 0 L20 14 M20 0 L0 14" stroke="#fff" stroke-width="3"/><path d="M10 0 V14 M0 7 H20" stroke="#fff" stroke-width="5"/><path d="M10 0 V14 M0 7 H20" stroke="#C8102E" stroke-width="3"/><rect x="0.5" y="0.5" width="19" height="13" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1"/></svg>',
+            cz: '<svg width="20" height="14" viewBox="0 0 20 14" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="7" fill="#fff"/><rect y="7" width="20" height="7" fill="#D7141A"/><path d="M0 0 L9 7 L0 14 Z" fill="#11457E"/><rect x="0.5" y="0.5" width="19" height="13" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1"/></svg>',
+            de: '<svg width="20" height="14" viewBox="0 0 20 14" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="4.67" fill="#000"/><rect y="4.67" width="20" height="4.66" fill="#DD0000"/><rect y="9.33" width="20" height="4.67" fill="#FFCE00"/><rect x="0.5" y="0.5" width="19" height="13" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1"/></svg>',
+            it: '<svg width="20" height="14" viewBox="0 0 20 14" xmlns="http://www.w3.org/2000/svg"><rect width="6.67" height="14" fill="#009246"/><rect x="6.67" width="6.66" height="14" fill="#fff"/><rect x="13.33" width="6.67" height="14" fill="#CE2B37"/><rect x="0.5" y="0.5" width="19" height="13" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1"/></svg>',
+            es: '<svg width="20" height="14" viewBox="0 0 20 14" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="3.5" fill="#AA151B"/><rect y="3.5" width="20" height="7" fill="#F1BF00"/><rect y="10.5" width="20" height="3.5" fill="#AA151B"/><rect x="0.5" y="0.5" width="19" height="13" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1"/></svg>',
+            fr: '<svg width="20" height="14" viewBox="0 0 20 14" xmlns="http://www.w3.org/2000/svg"><rect width="6.67" height="14" fill="#0055A4"/><rect x="6.67" width="6.66" height="14" fill="#fff"/><rect x="13.33" width="6.67" height="14" fill="#EF4135"/><rect x="0.5" y="0.5" width="19" height="13" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1"/></svg>',
+            pl: '<svg width="20" height="14" viewBox="0 0 20 14" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="7" fill="#fff"/><rect y="7" width="20" height="7" fill="#DC143C"/><rect x="0.5" y="0.5" width="19" height="13" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="1"/></svg>'
+        };
+
+        var LANGS = [
+            { code: 'en', name: 'English' },
+            { code: 'cz', name: 'Čeština' },
+            { code: 'de', name: 'Deutsch' },
+            { code: 'it', name: 'Italiano' },
+            { code: 'es', name: 'Español' },
+            { code: 'fr', name: 'Français' },
+            { code: 'pl', name: 'Polski' }
+        ];
+
+        var UI = {
+            en: {
+                sectionSource: "Source",
+                dirToScan: "Directory to scan",
+                browse: "Browse",
+                dropHint: "Drop a folder here or",
+                sectionOutput: "Output",
+                titleOptional: "Title (optional)",
+                titlePlaceholder: "Source directory name used if empty",
+                catalogLanguage: "Catalog language (for the customer)",
+                theme: "Theme",
+                outputFormat: "Output format",
+                webCardTitle: "Web package (.tar.gz)",
+                webCardDesc: "Upload to your server, send the customer a link",
+                htmlCardTitle: "Single HTML file",
+                htmlCardDesc: "One file — send as an e-mail attachment",
+                webOutputDir: "Web output directory",
+                htmlOutputDir: "HTML output directory",
+                advanced: "Advanced",
+                optHidden: "Include hidden files",
+                optZeroSize: "Include zero-size files",
+                optEmptyDirs: "Include empty directories",
+                optSymlinks: "Follow symbolic links",
+                optPackages: "Show packages as directories",
+                generate: "Generate",
+                logTab: "Log",
+                openFolder: "Open folder",
+                openHtml: "Open HTML",
+                done: "Complete!",
+                starting: "Starting…",
+                filesIn: "files in",
+                foldersParen: "folders",
+                warnings: "warnings",
+                warningsClickHint: "Click to show details in the log",
+                about: "About",
+                details: "Details",
+                statusIdle: "Select a source folder and output format, then click Generate.",
+                generating: "Working…",
+                dlgFileExistsTitle: "File already exists",
+                dlgFileExistsMsg: "{0} already exists in {1}\n\nOverwrite existing file or rename?",
+                dlgRenameTitle: "Rename",
+                dlgRenameMsg: "Enter new filename (without .{0}):",
+                dlgFilename: "Filename",
+                dlgInvalidJobTitle: "Invalid job number",
+                dlgInvalidJobMsg: "'{0}' is not a valid job number.\n\nExpected: {1}\n\nRename or keep current name?",
+                dlgJobNumber: "Job number",
+                btnOverwrite: "Overwrite",
+                btnRename: "Rename",
+                btnCancel: "Cancel",
+                btnOk: "OK",
+                btnKeep: "Keep",
+                customize: "Customize",
+                custLogo: "Logo",
+                custBackground: "Header background",
+                custGradient: "Use gradient (two colors)",
+                custColor1: "Color 1",
+                custColor2: "Color 2",
+                custFooterText: "Footer text",
+                custFooterUrl: "Footer URL",
+                custShowFooter: "Show footer",
+                custNote: "Saving writes to your user config. A d2h.config.json next to the app takes precedence.",
+                save: "Save",
+                cancel: "Cancel",
+                savedTo: "Saved to",
+                clear: "Clear"
+            },
+            cz: {
+                sectionSource: "Zdroj",
+                dirToScan: "Adresář ke skenování",
+                browse: "Procházet",
+                dropHint: "Přetáhněte sem složku nebo",
+                sectionOutput: "Výstup",
+                titleOptional: "Titulek (nepovinný)",
+                titlePlaceholder: "Když je prázdné, použije se název zdrojové složky",
+                catalogLanguage: "Jazyk katalogu (pro zákazníka)",
+                theme: "Vzhled",
+                outputFormat: "Formát výstupu",
+                webCardTitle: "Webový balíček (.tar.gz)",
+                webCardDesc: "Nahrajte na server a pošlete zákazníkovi odkaz",
+                htmlCardTitle: "Jeden HTML soubor",
+                htmlCardDesc: "Jediný soubor — pošlete jako přílohu e-mailu",
+                webOutputDir: "Výstupní adresář pro web",
+                htmlOutputDir: "Výstupní adresář pro HTML",
+                advanced: "Pokročilé",
+                optHidden: "Zahrnout skryté soubory",
+                optZeroSize: "Zahrnout soubory s nulovou velikostí",
+                optEmptyDirs: "Zahrnout prázdné adresáře",
+                optSymlinks: "Následovat symbolické odkazy",
+                optPackages: "Zobrazit balíčky jako adresáře",
+                generate: "Generovat",
+                logTab: "Log",
+                openFolder: "Otevřít složku",
+                openHtml: "Otevřít HTML",
+                done: "Hotovo!",
+                starting: "Spouštění…",
+                filesIn: "souborů v",
+                foldersParen: "složkách",
+                warnings: "varování",
+                warningsClickHint: "Klikněte pro zobrazení podrobností v logu",
+                about: "O aplikaci",
+                details: "Podrobnosti",
+                statusIdle: "Vyberte zdrojovou složku a formát výstupu, pak klikněte na Generovat.",
+                generating: "Pracuji…",
+                dlgFileExistsTitle: "Soubor už existuje",
+                dlgFileExistsMsg: "{0} už v {1} existuje\n\nPřepsat existující soubor, nebo přejmenovat?",
+                dlgRenameTitle: "Přejmenovat",
+                dlgRenameMsg: "Zadejte nový název souboru (bez .{0}):",
+                dlgFilename: "Název souboru",
+                dlgInvalidJobTitle: "Neplatné číslo zakázky",
+                dlgInvalidJobMsg: "'{0}' není platné číslo zakázky.\n\nOčekáváno: {1}\n\nPřejmenovat, nebo ponechat současný název?",
+                dlgJobNumber: "Číslo zakázky",
+                btnOverwrite: "Přepsat",
+                btnRename: "Přejmenovat",
+                btnCancel: "Zrušit",
+                btnOk: "OK",
+                btnKeep: "Ponechat",
+                customize: "Přizpůsobit",
+                custLogo: "Logo",
+                custBackground: "Pozadí záhlaví",
+                custGradient: "Použít přechod (dvě barvy)",
+                custColor1: "Barva 1",
+                custColor2: "Barva 2",
+                custFooterText: "Text patičky",
+                custFooterUrl: "URL patičky",
+                custShowFooter: "Zobrazit patičku",
+                custNote: "Uložení zapíše nastavení do uživatelské konfigurace. Soubor d2h.config.json vedle aplikace má přednost.",
+                save: "Uložit",
+                cancel: "Zrušit",
+                savedTo: "Uloženo do",
+                clear: "Vymazat"
+            },
+            de: {
+                sectionSource: "Quelle",
+                dirToScan: "Zu scannendes Verzeichnis",
+                browse: "Durchsuchen",
+                dropHint: "Ordner hierher ziehen oder",
+                sectionOutput: "Ausgabe",
+                titleOptional: "Titel (optional)",
+                titlePlaceholder: "Leer lassen für den Namen des Quellordners",
+                catalogLanguage: "Katalogsprache (für den Kunden)",
+                theme: "Design",
+                outputFormat: "Ausgabeformat",
+                webCardTitle: "Web-Paket (.tar.gz)",
+                webCardDesc: "Auf Ihren Server hochladen, dem Kunden einen Link senden",
+                htmlCardTitle: "Einzelne HTML-Datei",
+                htmlCardDesc: "Eine Datei — als E-Mail-Anhang versenden",
+                webOutputDir: "Web-Ausgabeverzeichnis",
+                htmlOutputDir: "HTML-Ausgabeverzeichnis",
+                advanced: "Erweitert",
+                optHidden: "Versteckte Dateien einbeziehen",
+                optZeroSize: "Dateien mit Größe null einbeziehen",
+                optEmptyDirs: "Leere Verzeichnisse einbeziehen",
+                optSymlinks: "Symbolischen Links folgen",
+                optPackages: "Pakete als Verzeichnisse anzeigen",
+                generate: "Generieren",
+                logTab: "Protokoll",
+                openFolder: "Ordner öffnen",
+                openHtml: "HTML öffnen",
+                done: "Fertig!",
+                starting: "Wird gestartet…",
+                filesIn: "Dateien in",
+                foldersParen: "Ordnern",
+                warnings: "Warnungen",
+                warningsClickHint: "Klicken, um Details im Protokoll anzuzeigen",
+                about: "Über D2H",
+                details: "Details",
+                statusIdle: "Wählen Sie einen Quellordner und ein Ausgabeformat, dann klicken Sie auf Generieren.",
+                generating: "Wird verarbeitet…",
+                dlgFileExistsTitle: "Datei existiert bereits",
+                dlgFileExistsMsg: "{0} existiert bereits in {1}\n\nVorhandene Datei überschreiben oder umbenennen?",
+                dlgRenameTitle: "Umbenennen",
+                dlgRenameMsg: "Neuen Dateinamen eingeben (ohne .{0}):",
+                dlgFilename: "Dateiname",
+                dlgInvalidJobTitle: "Ungültige Auftragsnummer",
+                dlgInvalidJobMsg: "'{0}' ist keine gültige Auftragsnummer.\n\nErwartet: {1}\n\nUmbenennen oder aktuellen Namen behalten?",
+                dlgJobNumber: "Auftragsnummer",
+                btnOverwrite: "Überschreiben",
+                btnRename: "Umbenennen",
+                btnCancel: "Abbrechen",
+                btnOk: "OK",
+                btnKeep: "Behalten",
+                customize: "Anpassen",
+                custLogo: "Logo",
+                custBackground: "Kopfzeilen-Hintergrund",
+                custGradient: "Farbverlauf verwenden (zwei Farben)",
+                custColor1: "Farbe 1",
+                custColor2: "Farbe 2",
+                custFooterText: "Fußzeilentext",
+                custFooterUrl: "Fußzeilen-URL",
+                custShowFooter: "Fußzeile anzeigen",
+                custNote: "Beim Speichern wird in die Benutzerkonfiguration geschrieben. Eine d2h.config.json neben der Anwendung hat Vorrang.",
+                save: "Speichern",
+                cancel: "Abbrechen",
+                savedTo: "Gespeichert in",
+                clear: "Löschen"
+            },
+            it: {
+                sectionSource: "Origine",
+                dirToScan: "Cartella da scansionare",
+                browse: "Sfoglia",
+                dropHint: "Trascina qui una cartella oppure",
+                sectionOutput: "Output",
+                titleOptional: "Titolo (facoltativo)",
+                titlePlaceholder: "Se vuoto, verrà usato il nome della cartella di origine",
+                catalogLanguage: "Lingua del catalogo (per il cliente)",
+                theme: "Tema",
+                outputFormat: "Formato di output",
+                webCardTitle: "Pacchetto web (.tar.gz)",
+                webCardDesc: "Caricalo sul tuo server e invia al cliente un link",
+                htmlCardTitle: "Singolo file HTML",
+                htmlCardDesc: "Un solo file — da inviare come allegato e-mail",
+                webOutputDir: "Cartella di output web",
+                htmlOutputDir: "Cartella di output HTML",
+                advanced: "Avanzate",
+                optHidden: "Includi file nascosti",
+                optZeroSize: "Includi file di dimensione zero",
+                optEmptyDirs: "Includi cartelle vuote",
+                optSymlinks: "Segui i collegamenti simbolici",
+                optPackages: "Mostra i pacchetti come cartelle",
+                generate: "Genera",
+                logTab: "Log",
+                openFolder: "Apri cartella",
+                openHtml: "Apri HTML",
+                done: "Completato!",
+                starting: "Avvio…",
+                filesIn: "file in",
+                foldersParen: "cartelle",
+                warnings: "avvisi",
+                warningsClickHint: "Fai clic per vedere i dettagli nel log",
+                about: "Informazioni su D2H",
+                details: "Dettagli",
+                statusIdle: "Seleziona una cartella di origine e il formato di output, poi fai clic su Genera.",
+                generating: "Elaborazione…",
+                dlgFileExistsTitle: "Il file esiste già",
+                dlgFileExistsMsg: "{0} esiste già in {1}\n\nSovrascrivere il file esistente o rinominarlo?",
+                dlgRenameTitle: "Rinomina",
+                dlgRenameMsg: "Inserisci il nuovo nome del file (senza .{0}):",
+                dlgFilename: "Nome file",
+                dlgInvalidJobTitle: "Numero commessa non valido",
+                dlgInvalidJobMsg: "'{0}' non è un numero di commessa valido.\n\nAtteso: {1}\n\nRinominare o mantenere il nome attuale?",
+                dlgJobNumber: "Numero commessa",
+                btnOverwrite: "Sovrascrivi",
+                btnRename: "Rinomina",
+                btnCancel: "Annulla",
+                btnOk: "OK",
+                btnKeep: "Mantieni",
+                customize: "Personalizza",
+                custLogo: "Logo",
+                custBackground: "Sfondo dell'intestazione",
+                custGradient: "Usa gradiente (due colori)",
+                custColor1: "Colore 1",
+                custColor2: "Colore 2",
+                custFooterText: "Testo del piè di pagina",
+                custFooterUrl: "URL del piè di pagina",
+                custShowFooter: "Mostra piè di pagina",
+                custNote: "Il salvataggio scrive nella configurazione utente. Un file d2h.config.json accanto all'applicazione ha la precedenza.",
+                save: "Salva",
+                cancel: "Annulla",
+                savedTo: "Salvato in",
+                clear: "Cancella"
+            },
+            es: {
+                sectionSource: "Origen",
+                dirToScan: "Carpeta a escanear",
+                browse: "Examinar",
+                dropHint: "Arrastra aquí una carpeta o",
+                sectionOutput: "Salida",
+                titleOptional: "Título (opcional)",
+                titlePlaceholder: "Si se deja vacío, se usará el nombre de la carpeta de origen",
+                catalogLanguage: "Idioma del catálogo (para el cliente)",
+                theme: "Tema",
+                outputFormat: "Formato de salida",
+                webCardTitle: "Paquete web (.tar.gz)",
+                webCardDesc: "Súbelo a tu servidor y envía un enlace al cliente",
+                htmlCardTitle: "Archivo HTML único",
+                htmlCardDesc: "Un solo archivo — envíalo como adjunto de correo",
+                webOutputDir: "Carpeta de salida web",
+                htmlOutputDir: "Carpeta de salida HTML",
+                advanced: "Avanzado",
+                optHidden: "Incluir archivos ocultos",
+                optZeroSize: "Incluir archivos de tamaño cero",
+                optEmptyDirs: "Incluir carpetas vacías",
+                optSymlinks: "Seguir enlaces simbólicos",
+                optPackages: "Mostrar paquetes como carpetas",
+                generate: "Generar",
+                logTab: "Registro",
+                openFolder: "Abrir carpeta",
+                openHtml: "Abrir HTML",
+                done: "¡Completado!",
+                starting: "Iniciando…",
+                filesIn: "archivos en",
+                foldersParen: "carpetas",
+                warnings: "advertencias",
+                warningsClickHint: "Haz clic para ver los detalles en el registro",
+                about: "Acerca de D2H",
+                details: "Detalles",
+                statusIdle: "Selecciona una carpeta de origen y el formato de salida, luego haz clic en Generar.",
+                generating: "Procesando…",
+                dlgFileExistsTitle: "El archivo ya existe",
+                dlgFileExistsMsg: "{0} ya existe en {1}\n\n¿Sobrescribir el archivo existente o renombrarlo?",
+                dlgRenameTitle: "Renombrar",
+                dlgRenameMsg: "Introduce el nuevo nombre de archivo (sin .{0}):",
+                dlgFilename: "Nombre de archivo",
+                dlgInvalidJobTitle: "Número de trabajo no válido",
+                dlgInvalidJobMsg: "'{0}' no es un número de trabajo válido.\n\nEsperado: {1}\n\n¿Renombrar o mantener el nombre actual?",
+                dlgJobNumber: "Número de trabajo",
+                btnOverwrite: "Sobrescribir",
+                btnRename: "Renombrar",
+                btnCancel: "Cancelar",
+                btnOk: "Aceptar",
+                btnKeep: "Mantener",
+                customize: "Personalizar",
+                custLogo: "Logotipo",
+                custBackground: "Fondo del encabezado",
+                custGradient: "Usar degradado (dos colores)",
+                custColor1: "Color 1",
+                custColor2: "Color 2",
+                custFooterText: "Texto del pie de página",
+                custFooterUrl: "URL del pie de página",
+                custShowFooter: "Mostrar pie de página",
+                custNote: "Al guardar se escribe en la configuración de usuario. Un archivo d2h.config.json junto a la aplicación tiene prioridad.",
+                save: "Guardar",
+                cancel: "Cancelar",
+                savedTo: "Guardado en",
+                clear: "Borrar"
+            },
+            fr: {
+                sectionSource: "Source",
+                dirToScan: "Dossier à analyser",
+                browse: "Parcourir",
+                dropHint: "Déposez un dossier ici ou",
+                sectionOutput: "Sortie",
+                titleOptional: "Titre (facultatif)",
+                titlePlaceholder: "Si vide, le nom du dossier source sera utilisé",
+                catalogLanguage: "Langue du catalogue (pour le client)",
+                theme: "Thème",
+                outputFormat: "Format de sortie",
+                webCardTitle: "Paquet web (.tar.gz)",
+                webCardDesc: "À déposer sur votre serveur, envoyez un lien au client",
+                htmlCardTitle: "Fichier HTML unique",
+                htmlCardDesc: "Un seul fichier — à envoyer en pièce jointe",
+                webOutputDir: "Dossier de sortie web",
+                htmlOutputDir: "Dossier de sortie HTML",
+                advanced: "Avancé",
+                optHidden: "Inclure les fichiers cachés",
+                optZeroSize: "Inclure les fichiers de taille nulle",
+                optEmptyDirs: "Inclure les dossiers vides",
+                optSymlinks: "Suivre les liens symboliques",
+                optPackages: "Afficher les paquets comme dossiers",
+                generate: "Générer",
+                logTab: "Journal",
+                openFolder: "Ouvrir le dossier",
+                openHtml: "Ouvrir le HTML",
+                done: "Terminé !",
+                starting: "Démarrage…",
+                filesIn: "fichiers dans",
+                foldersParen: "dossiers",
+                warnings: "avertissements",
+                warningsClickHint: "Cliquez pour afficher les détails dans le journal",
+                about: "À propos de D2H",
+                details: "Détails",
+                statusIdle: "Sélectionnez un dossier source et un format de sortie, puis cliquez sur Générer.",
+                generating: "Traitement…",
+                dlgFileExistsTitle: "Le fichier existe déjà",
+                dlgFileExistsMsg: "{0} existe déjà dans {1}\n\nÉcraser le fichier existant ou le renommer ?",
+                dlgRenameTitle: "Renommer",
+                dlgRenameMsg: "Saisissez le nouveau nom de fichier (sans .{0}) :",
+                dlgFilename: "Nom de fichier",
+                dlgInvalidJobTitle: "Numéro de dossier invalide",
+                dlgInvalidJobMsg: "'{0}' n'est pas un numéro de dossier valide.\n\nAttendu : {1}\n\nRenommer ou conserver le nom actuel ?",
+                dlgJobNumber: "Numéro de dossier",
+                btnOverwrite: "Écraser",
+                btnRename: "Renommer",
+                btnCancel: "Annuler",
+                btnOk: "OK",
+                btnKeep: "Conserver",
+                customize: "Personnaliser",
+                custLogo: "Logo",
+                custBackground: "Arrière-plan de l'en-tête",
+                custGradient: "Utiliser un dégradé (deux couleurs)",
+                custColor1: "Couleur 1",
+                custColor2: "Couleur 2",
+                custFooterText: "Texte du pied de page",
+                custFooterUrl: "URL du pied de page",
+                custShowFooter: "Afficher le pied de page",
+                custNote: "L'enregistrement écrit dans la configuration utilisateur. Un fichier d2h.config.json à côté de l'application est prioritaire.",
+                save: "Enregistrer",
+                cancel: "Annuler",
+                savedTo: "Enregistré dans",
+                clear: "Effacer"
+            },
+            pl: {
+                sectionSource: "Źródło",
+                dirToScan: "Folder do skanowania",
+                browse: "Przeglądaj",
+                dropHint: "Przeciągnij tu folder lub",
+                sectionOutput: "Dane wyjściowe",
+                titleOptional: "Tytuł (opcjonalny)",
+                titlePlaceholder: "Jeśli puste, zostanie użyta nazwa folderu źródłowego",
+                catalogLanguage: "Język katalogu (dla klienta)",
+                theme: "Motyw",
+                outputFormat: "Format wyjściowy",
+                webCardTitle: "Pakiet WWW (.tar.gz)",
+                webCardDesc: "Wgraj na serwer i wyślij klientowi link",
+                htmlCardTitle: "Pojedynczy plik HTML",
+                htmlCardDesc: "Jeden plik — wyślij jako załącznik e-mail",
+                webOutputDir: "Folder wyjściowy WWW",
+                htmlOutputDir: "Folder wyjściowy HTML",
+                advanced: "Zaawansowane",
+                optHidden: "Uwzględnij ukryte pliki",
+                optZeroSize: "Uwzględnij pliki o zerowym rozmiarze",
+                optEmptyDirs: "Uwzględnij puste foldery",
+                optSymlinks: "Podążaj za dowiązaniami symbolicznymi",
+                optPackages: "Pokazuj pakiety jako katalogi",
+                generate: "Generuj",
+                logTab: "Dziennik",
+                openFolder: "Otwórz folder",
+                openHtml: "Otwórz HTML",
+                done: "Gotowe!",
+                starting: "Uruchamianie…",
+                filesIn: "plików w",
+                foldersParen: "folderach",
+                warnings: "ostrzeżeń",
+                warningsClickHint: "Kliknij, aby zobaczyć szczegóły w dzienniku",
+                about: "O aplikacji D2H",
+                details: "Szczegóły",
+                statusIdle: "Wybierz folder źródłowy i format wyjściowy, a następnie kliknij Generuj.",
+                generating: "Przetwarzanie…",
+                dlgFileExistsTitle: "Plik już istnieje",
+                dlgFileExistsMsg: "{0} już istnieje w {1}\n\nNadpisać istniejący plik czy zmienić nazwę?",
+                dlgRenameTitle: "Zmień nazwę",
+                dlgRenameMsg: "Podaj nową nazwę pliku (bez .{0}):",
+                dlgFilename: "Nazwa pliku",
+                dlgInvalidJobTitle: "Nieprawidłowy numer zlecenia",
+                dlgInvalidJobMsg: "'{0}' nie jest prawidłowym numerem zlecenia.\n\nOczekiwano: {1}\n\nZmienić nazwę czy zachować obecną?",
+                dlgJobNumber: "Numer zlecenia",
+                btnOverwrite: "Nadpisz",
+                btnRename: "Zmień nazwę",
+                btnCancel: "Anuluj",
+                btnOk: "OK",
+                btnKeep: "Zachowaj",
+                customize: "Dostosuj",
+                custLogo: "Logo",
+                custBackground: "Tło nagłówka",
+                custGradient: "Użyj gradientu (dwa kolory)",
+                custColor1: "Kolor 1",
+                custColor2: "Kolor 2",
+                custFooterText: "Tekst stopki",
+                custFooterUrl: "Adres URL stopki",
+                custShowFooter: "Pokaż stopkę",
+                custNote: "Zapis trafia do konfiguracji użytkownika. Plik d2h.config.json obok aplikacji ma pierwszeństwo.",
+                save: "Zapisz",
+                cancel: "Anuluj",
+                savedTo: "Zapisano do",
+                clear: "Wyczyść"
+            }
+        };
+
+        var uiLang = 'en';
+
+        function t(key) {
+            return (UI[uiLang] && UI[uiLang][key]) || UI.en[key] || key;
+        }
+
+        function fmt(template, params) {
+            params = params || [];
+            return String(template).replace(/\{(\d+)\}/g, function(m, i) {
+                var v = params[parseInt(i, 10)];
+                return (v === undefined || v === null) ? m : v;
+            });
+        }
+
+        function lsGet(key) {
+            try { return localStorage.getItem(key); } catch (e) { return null; }
+        }
+        function lsSet(key, value) {
+            try { localStorage.setItem(key, value); } catch (e) {}
+        }
+
+        function detectNavLang() {
+            var n = (navigator.language || '').toLowerCase();
+            if (n.indexOf('cs') === 0) return 'cz';
+            if (n.indexOf('de') === 0) return 'de';
+            if (n.indexOf('it') === 0) return 'it';
+            if (n.indexOf('es') === 0) return 'es';
+            if (n.indexOf('fr') === 0) return 'fr';
+            if (n.indexOf('pl') === 0) return 'pl';
+            if (n.indexOf('en') === 0) return 'en';
+            return 'en';
+        }
+
+        function setUILanguage(lang, persist) {
+            if (!UI[lang]) lang = 'en';
+            uiLang = lang;
+            if (persist) lsSet('d2h_ui_lang', lang);
+
+            // The flag is the master language: switching the UI language also
+            // switches the customer catalog language (still overridable in the
+            // select afterwards; config jobId rules keep overriding per job).
+            var catalogSel = document.getElementById('opt-lang');
+            if (catalogSel) {
+                var hasOption = false;
+                for (var oi = 0; oi < catalogSel.options.length; oi++) {
+                    if (catalogSel.options[oi].value === lang) { hasOption = true; break; }
+                }
+                catalogSel.value = hasOption ? lang : 'en';
+            }
+
+            // Static labels
+            var nodes = document.querySelectorAll('[data-i18n]');
+            for (var i = 0; i < nodes.length; i++) {
+                var el = nodes[i];
+                var txt = t(el.getAttribute('data-i18n'));
+                var num = el.getAttribute('data-i18n-num');
+                if (num) txt = num + ' · ' + txt;
+                el.textContent = txt;
+            }
+            // Placeholders
+            var phNodes = document.querySelectorAll('[data-i18n-placeholder]');
+            for (var j = 0; j < phNodes.length; j++) {
+                phNodes[j].setAttribute('placeholder', t(phNodes[j].getAttribute('data-i18n-placeholder')));
+            }
+            // Tooltips (title attribute)
+            var titleNodes = document.querySelectorAll('[data-i18n-title]');
+            for (var m = 0; m < titleNodes.length; m++) {
+                titleNodes[m].setAttribute('title', t(titleNodes[m].getAttribute('data-i18n-title')));
+            }
+
+            // Flag button
+            var flagEl = document.getElementById('lang-flag');
+            if (flagEl) flagEl.innerHTML = FLAG_SVG[lang] || FLAG_SVG.en;
+            var codeEl = document.getElementById('lang-code');
+            if (codeEl) codeEl.textContent = lang.toUpperCase();
+
+            // Menu active state
+            var items = document.querySelectorAll('.lang-item');
+            for (var k = 0; k < items.length; k++) {
+                items[k].classList.toggle('active', items[k].getAttribute('data-lang') === lang);
+            }
+
+            syncCatalogLang();
+            renderStatus();
+        }
+
+        // Default the catalog (output) language to the UI language, but only
+        // while the user hasn't touched it and the config has no explicit default.
+        function syncCatalogLang() {
+            if (catalogLangManuallySet) return;
+            if (appConfig && appConfig.defaults && appConfig.defaults.language) return;
+            var sel = document.getElementById('opt-lang');
+            for (var i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value === uiLang) { sel.value = uiLang; return; }
+            }
+        }
+
+        function buildLangMenu() {
+            var menu = document.getElementById('lang-menu');
+            while (menu.firstChild) menu.removeChild(menu.firstChild);
+            LANGS.forEach(function(l) {
+                var item = document.createElement('div');
+                item.className = 'lang-item';
+                item.setAttribute('data-lang', l.code);
+                var flag = document.createElement('span');
+                flag.className = 'lang-flag';
+                flag.innerHTML = FLAG_SVG[l.code];
+                var name = document.createElement('span');
+                name.textContent = l.name;
+                item.appendChild(flag);
+                item.appendChild(name);
+                item.addEventListener('click', function() {
+                    setUILanguage(l.code, true);
+                    toggleLangMenu(false);
+                });
+                menu.appendChild(item);
+            });
+        }
+
+        function toggleLangMenu(show) {
+            var menu = document.getElementById('lang-menu');
+            if (show === undefined) show = menu.style.display === 'none';
+            menu.style.display = show ? 'block' : 'none';
+        }
+
+        // =====================================================================
+        // Tauri init / config
+        // =====================================================================
+
+        function initTauri() {
+            if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+                invoke = window.__TAURI__.core.invoke;
+                logLine('Tauri API ready', 'success');
+                setupDragDrop();
+                loadAppConfig();
+                return true;
+            }
+            return false;
+        }
+
+        function loadAppConfig() {
+            invoke('get_config')
+                .then(function(info) {
+                    appConfig = info.config || null;
+                    if (info.error) {
+                        logLine('Config error: ' + info.error + ' (using defaults)', 'warning');
+                    } else if (info.path) {
+                        logLine('Config: ' + info.path, 'info');
+                    } else {
+                        logLine('No d2h.config.json found — using neutral defaults', 'info');
+                    }
+                    resolveUILanguageFromConfig();
+                    applyConfigDefaults();
+                })
+                .catch(function(e) {
+                    logLine('get_config error: ' + e, 'error');
+                });
+        }
+
+        // Resolution order: localStorage -> config defaults.uiLanguage -> navigator -> 'en'.
+        // The navigator-based default is already applied at startup; here we only
+        // upgrade to the config value when the user has no stored preference.
+        function resolveUILanguageFromConfig() {
+            if (lsGet('d2h_ui_lang')) return;
+            if (appConfig && appConfig.defaults && appConfig.defaults.uiLanguage && UI[appConfig.defaults.uiLanguage]) {
+                setUILanguage(appConfig.defaults.uiLanguage, false);
+            }
+        }
+
+        function applyConfigDefaults() {
+            if (!appConfig || !appConfig.defaults) { syncCatalogLang(); updateGenerateButton(); return; }
+            var d = appConfig.defaults;
+            if (d.language) document.getElementById('opt-lang').value = d.language;
+            if (d.theme) document.getElementById('opt-theme').value = d.theme;
+            if (d.webOutputDir && !webOutputManuallySet) {
+                document.getElementById('input-web-output').value = d.webOutputDir;
+            }
+            if (d.htmlOutputDir && !htmlOutputManuallySet) {
+                document.getElementById('input-html-output').value = d.htmlOutputDir;
+            }
+            syncCatalogLang();
+            updateGenerateButton();
+        }
+
+        // Try init immediately, then retry if needed
+        if (!initTauri()) {
+            document.addEventListener('DOMContentLoaded', function() {
+                if (!initTauri()) {
+                    // Retry with delay
+                    setTimeout(function() {
+                        if (!initTauri()) {
+                            logLine('ERROR: Tauri API not available. __TAURI__=' + typeof window.__TAURI__, 'error');
+                        }
+                    }, 1000);
+                }
+            });
+        }
+
+        // --- Drag & drop (Tauri v2 file drop events) ---
+        function setupDragDrop() {
+            if (dragDropSetupDone) return;
+            if (!(window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.listen)) return;
+            dragDropSetupDone = true;
+            var listen = window.__TAURI__.event.listen;
+            var dz = document.getElementById('drop-zone');
+            try {
+                listen('tauri://drag-drop', function(e) {
+                    if (dz) dz.classList.remove('dragging');
+                    var p = e && e.payload && e.payload.paths && e.payload.paths[0];
+                    if (p) {
+                        document.getElementById('input-dir').value = p;
+                        applyAutoDefaults(p);
+                        updateGenerateButton();
+                    }
+                });
+                listen('tauri://drag-over', function() {
+                    if (dz) dz.classList.add('dragging');
+                });
+                listen('tauri://drag-enter', function() {
+                    if (dz) dz.classList.add('dragging');
+                });
+                listen('tauri://drag-leave', function() {
+                    if (dz) dz.classList.remove('dragging');
+                });
+            } catch (err) {
+                logLine('Drag&drop setup error: ' + err, 'warning');
+            }
+        }
+
+        // --- Directory / File Pickers ---
+
+        function pickDirectory() {
+            logLine('pickDirectory() called', 'info');
+            if (!invoke) { logLine('Tauri not ready', 'error'); return; }
+            invoke('pick_directory', { title: 'Select directory to scan' })
+                .then(function(dir) {
+                    logLine('pick_directory result: ' + dir, 'info');
+                    if (dir) {
+                        document.getElementById('input-dir').value = dir;
+                        applyAutoDefaults(dir);
+                        updateGenerateButton();
+                    }
+                })
+                .catch(function(e) {
+                    logLine('pick_directory error: ' + e, 'error');
+                });
+        }
+
+        // Auto-defaults are driven entirely by jobId.rules from d2h.config.json —
+        // each rule is { match: <regex>, language?, theme?, webOutputDir?, htmlOutputDir? }.
+        // First rule whose regex matches the source directory name wins.
+        // Without a config file nothing happens (neutral public behavior).
+        function applyAutoDefaults(dirPath) {
+            if (!appConfig || !appConfig.jobId || !appConfig.jobId.rules) return;
+            var sep = dirPath.indexOf('\\') >= 0 ? '\\' : '/';
+            var parts = dirPath.split(sep).filter(function(p) { return p.length > 0; });
+            var dirName = parts[parts.length - 1] || '';
+
+            var rules = appConfig.jobId.rules;
+            for (var i = 0; i < rules.length; i++) {
+                var rule = rules[i];
+                var re;
+                try { re = new RegExp(rule.match); } catch (e) {
+                    logLine('Config: invalid rule regex "' + rule.match + '"', 'warning');
+                    continue;
+                }
+                if (!re.test(dirName)) continue;
+
+                if (rule.language) {
+                    document.getElementById('opt-lang').value = rule.language;
+                    catalogLangManuallySet = true; // rule-driven, don't override on UI language switch
+                }
+                if (rule.theme) document.getElementById('opt-theme').value = rule.theme;
+                if (rule.webOutputDir && !webOutputManuallySet) {
+                    document.getElementById('input-web-output').value = rule.webOutputDir;
+                }
+                if (rule.htmlOutputDir && !htmlOutputManuallySet) {
+                    document.getElementById('input-html-output').value = rule.htmlOutputDir;
+                }
+                logLine('Auto: rule ' + (i + 1) + ' matched "' + dirName + '"' +
+                    (rule.language ? ' → lang ' + rule.language : '') +
+                    (rule.webOutputDir ? ' → ' + rule.webOutputDir : ''), 'info');
+                return; // first match wins
+            }
+        }
+
+        function pickWebOutputDirectory() {
+            if (!invoke) { logLine('Tauri not ready', 'error'); return; }
+            invoke('pick_directory', { title: 'Select web output directory' })
+                .then(function(dir) {
+                    if (dir) {
+                        document.getElementById('input-web-output').value = dir;
+                        webOutputManuallySet = true;
+                        updateGenerateButton();
+                    }
+                })
+                .catch(function(e) {
+                    logLine('pick_directory error: ' + e, 'error');
+                });
+        }
+
+        function pickHtmlOutputDirectory() {
+            if (!invoke) { logLine('Tauri not ready', 'error'); return; }
+            invoke('pick_directory', { title: 'Select HTML output directory' })
+                .then(function(dir) {
+                    if (dir) {
+                        document.getElementById('input-html-output').value = dir;
+                        htmlOutputManuallySet = true;
+                        updateGenerateButton();
+                    }
+                })
+                .catch(function(e) {
+                    logLine('pick_directory error: ' + e, 'error');
+                });
+        }
+
+        // --- Format cards <-> hidden checkboxes ---
+
+        function syncFormatCards() {
+            [['card-web', 'opt-web'], ['card-html', 'opt-html']].forEach(function(pair) {
+                var card = document.getElementById(pair[0]);
+                var cb = document.getElementById(pair[1]);
+                card.classList.toggle('selected', cb.checked);
+                card.setAttribute('aria-checked', cb.checked ? 'true' : 'false');
+            });
+        }
+
+        function toggleFormat(checkboxId) {
+            var cb = document.getElementById(checkboxId);
+            var other = document.getElementById(checkboxId === 'opt-web' ? 'opt-html' : 'opt-web');
+            // At least one format must stay selected
+            if (cb.checked && !other.checked) {
+                var cardId = checkboxId === 'opt-web' ? 'card-web' : 'card-html';
+                var card = document.getElementById(cardId);
+                card.classList.remove('shake');
+                void card.offsetWidth; // restart the animation
+                card.classList.add('shake');
+                return;
+            }
+            cb.checked = !cb.checked;
+            syncFormatCards();
+            updateGenerateButton();
+        }
+
+        function updateOutputFields() {
+            var webChecked = document.getElementById('opt-web').checked;
+            var htmlChecked = document.getElementById('opt-html').checked;
+            document.getElementById('field-web-output').style.display = webChecked ? '' : 'none';
+            document.getElementById('field-html-output').style.display = htmlChecked ? '' : 'none';
+        }
+
+        function updateGenerateButton() {
+            var dir = document.getElementById('input-dir').value;
+            var webChecked = document.getElementById('opt-web').checked;
+            var htmlChecked = document.getElementById('opt-html').checked;
+            var anyFormat = webChecked || htmlChecked;
+            var webOk = !webChecked || document.getElementById('input-web-output').value;
+            var htmlOk = !htmlChecked || document.getElementById('input-html-output').value;
+            document.getElementById('btn-generate').disabled = !dir || !anyFormat || !webOk || !htmlOk || generating;
+            updateOutputFields();
+        }
+
+        // --- Logging ---
+
+        function logLine(text, type) {
+            // Skip raw dialog JSON dumps
+            if (typeof text === 'string' && text.indexOf('Dialog: {') === 0) return;
+            var log = document.getElementById('log-content');
+            var line = document.createElement('div');
+            line.className = 'log-line' + (type ? ' ' + type : '');
+            line.textContent = text;
+            log.appendChild(line);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function clearLog() {
+            var log = document.getElementById('log-content');
+            while (log.firstChild) log.removeChild(log.firstChild);
+        }
+
+        function setLogExpanded(open) {
+            document.getElementById('log-section').classList.toggle('open', open);
+        }
+
+        // =====================================================================
+        // Status card (right panel)
+        // =====================================================================
+
+        var statusState = 'idle'; // idle | generating | success | error
+        var statusData = null;
+
+        function setStatus(state, data) {
+            statusState = state;
+            statusData = data;
+            renderStatus();
+        }
+
+        function renderStatus() {
+            var card = document.getElementById('status-card');
+            if (!card) return;
+            while (card.firstChild) card.removeChild(card.firstChild);
+            card.className = 'status-card ' + statusState;
+
+            if (statusState === 'idle') {
+                card.appendChild(document.createTextNode(t('statusIdle')));
+
+            } else if (statusState === 'generating') {
+                var row = document.createElement('div');
+                row.className = 'status-progress';
+                var spin = document.createElement('div');
+                spin.className = 'spinner';
+                row.appendChild(spin);
+                var msg = document.createElement('div');
+                msg.id = 'progress-text';
+                msg.textContent = (statusData && statusData.msg) || t('generating');
+                row.appendChild(msg);
+                card.appendChild(row);
+
+                var barWrap = document.createElement('div');
+                barWrap.className = 'progress-bar-wrapper';
+                var bar = document.createElement('div');
+                bar.id = 'progress-bar';
+                bar.className = 'progress-bar indeterminate';
+                barWrap.appendChild(bar);
+                card.appendChild(barWrap);
+
+            } else if (statusState === 'success') {
+                var result = statusData || {};
+                var title = document.createElement('div');
+                title.className = 'status-title';
+                title.textContent = '✔ ' + t('done');
+                card.appendChild(title);
+
+                var line1 = document.createElement('div');
+                line1.className = 'status-line';
+                var b1 = document.createElement('b');
+                b1.textContent = result.totalFiles;
+                line1.appendChild(b1);
+                line1.appendChild(document.createTextNode(' ' + t('filesIn') + ' '));
+                var b2 = document.createElement('b');
+                b2.textContent = result.totalDirs;
+                line1.appendChild(b2);
+                line1.appendChild(document.createTextNode(' ' + t('foldersParen') + ' (' + result.totalSize + ')'));
+                card.appendChild(line1);
+
+                if (result.tarGzPath) {
+                    var lineTar = document.createElement('div');
+                    lineTar.className = 'status-line';
+                    lineTar.textContent = 'tar.gz: ' + result.tarGzPath;
+                    card.appendChild(lineTar);
+                }
+                if (result.htmlPath) {
+                    var lineHtml = document.createElement('div');
+                    lineHtml.className = 'status-line';
+                    lineHtml.textContent = 'HTML: ' + result.htmlPath;
+                    card.appendChild(lineHtml);
+                }
+                if (result.warnings > 0) {
+                    var warnLine = document.createElement('div');
+                    warnLine.className = 'status-line warn';
+                    warnLine.textContent = '⚠ ' + result.warnings + ' ' + t('warnings');
+                    warnLine.style.cursor = 'pointer';
+                    warnLine.style.textDecoration = 'underline';
+                    warnLine.title = t('warningsClickHint');
+                    warnLine.onclick = function() {
+                        setLogExpanded(true);
+                        var logSection = document.getElementById('log-section');
+                        if (logSection) logSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    };
+                    card.appendChild(warnLine);
+                }
+
+                var actions = document.createElement('div');
+                actions.className = 'status-actions';
+                var btnFolder = document.createElement('button');
+                btnFolder.className = 'btn';
+                btnFolder.textContent = t('openFolder');
+                btnFolder.onclick = function() { openOutputFolder(); };
+                actions.appendChild(btnFolder);
+                if (result.htmlPath) {
+                    var btnHtml = document.createElement('button');
+                    btnHtml.className = 'btn';
+                    btnHtml.textContent = t('openHtml');
+                    btnHtml.onclick = function() {
+                        if (invoke) {
+                            invoke('open_path', { path: result.htmlPath })
+                                .catch(function(e) { logLine('open_path error: ' + e, 'error'); });
+                        }
+                    };
+                    actions.appendChild(btnHtml);
+                }
+                card.appendChild(actions);
+
+            } else if (statusState === 'error') {
+                var etitle = document.createElement('div');
+                etitle.className = 'status-title';
+                etitle.textContent = '✖ Error';
+                card.appendChild(etitle);
+                var eline = document.createElement('div');
+                eline.className = 'status-line';
+                eline.textContent = String(statusData || '');
+                card.appendChild(eline);
+            }
+        }
+
+        // --- Generate ---
+
+        async function doGenerate() {
+            var dir = document.getElementById('input-dir').value;
+            if (!dir) return;
+
+            var generateWeb = document.getElementById('opt-web').checked;
+            var generateHtml = document.getElementById('opt-html').checked;
+            var webOutput = generateWeb ? document.getElementById('input-web-output').value : '';
+            var htmlOutput = generateHtml ? document.getElementById('input-html-output').value : '';
+
+            if (generateWeb && !webOutput) return;
+            if (generateHtml && !htmlOutput) return;
+
+            generating = true;
+            updateGenerateButton();
+            clearLog();
+            setStatus('generating', { msg: t('starting') });
+
+            var titleVal = document.getElementById('input-title').value.trim();
+
+            var args = {
+                dir: dir,
+                webOutput: webOutput || '',
+                htmlOutput: htmlOutput || '',
+                title: titleVal.length > 0 ? titleVal : null,
+                hidden: document.getElementById('opt-hidden').checked,
+                includeZeroSize: document.getElementById('opt-zero-size').checked,
+                includeEmptyDirs: document.getElementById('opt-empty-dirs').checked,
+                followSymlinks: document.getElementById('opt-symlinks').checked,
+                showPackages: document.getElementById('opt-packages').checked,
+                generateWeb: generateWeb,
+                generateHtml: generateHtml,
+                lang: document.getElementById('opt-lang').value,
+                theme: document.getElementById('opt-theme').value,
+            };
+
+            logLine('D2H v1.6.1-beta', 'info');
+            logLine('Source: ' + dir, 'info');
+            if (generateWeb) logLine('Web output: ' + webOutput, 'info');
+            if (generateHtml) logLine('HTML output: ' + htmlOutput, 'info');
+            logLine('---');
+
+            // Start progress polling
+            var pollInterval = setInterval(async function() {
+                try {
+                    var p = await invoke('get_progress');
+                    if (p.question && !document.getElementById('dialog-modal')) {
+                        logLine('Dialog: ' + JSON.stringify(p.question), 'info');
+                        showDialogModal(p.question);
+                    }
+                    if (!p.question) {
+                        if (statusData) statusData.msg = p.message;
+                        var progressText = document.getElementById('progress-text');
+                        if (progressText) progressText.textContent = p.message;
+                        logLine(p.message);
+                    }
+                } catch (e) {}
+            }, 500);
+
+            try {
+                var result = await invoke('generate', { args: args });
+
+                clearInterval(pollInterval);
+
+                logLine('---');
+                logLine('Files: ' + result.totalFiles + ' in ' + result.totalDirs + ' folders (' + result.totalSize + ')', 'success');
+                if (result.tarGzPath) {
+                    logLine('tar.gz: ' + result.tarGzPath, 'success');
+                }
+                if (result.htmlPath) {
+                    logLine('HTML: ' + result.htmlPath, 'success');
+                }
+                logLine('Chunks: ' + result.chunks, 'success');
+                if (result.warnings > 0) {
+                    logLine('Warnings: ' + result.warnings, 'warning');
+                    (result.warningMessages || []).forEach(function(msg) {
+                        logLine('  ' + msg, 'warning');
+                    });
+                }
+                logLine('Done!', 'success');
+
+                lastOutputDir = result.outputDir;
+                setStatus('success', result);
+
+                // Auto-open generated HTML in browser
+                if (result.htmlPath) {
+                    invoke('open_path', { path: result.htmlPath });
+                }
+
+            } catch (e) {
+                clearInterval(pollInterval);
+                logLine('ERROR: ' + e, 'error');
+                setStatus('error', String(e));
+                setLogExpanded(true);
+            }
+
+            generating = false;
+            updateGenerateButton();
+        }
+
+        // --- Actions ---
+
+        async function openOutputFolder() {
+            if (lastOutputDir) {
+                try {
+                    await invoke('open_path', { path: lastOutputDir });
+                } catch (e) {
+                    logLine('Error opening folder: ' + e, 'error');
+                }
+            }
+        }
+
+        // --- Event Listeners (no inline onclick — Tauri CSP blocks them) ---
+        document.getElementById('btn-browse-dir').addEventListener('click', function() {
+            pickDirectory();
+        });
+        document.getElementById('btn-browse-web-output').addEventListener('click', function() {
+            pickWebOutputDirectory();
+        });
+        document.getElementById('btn-browse-html-output').addEventListener('click', function() {
+            pickHtmlOutputDirectory();
+        });
+        document.getElementById('input-web-output').addEventListener('input', function() {
+            webOutputManuallySet = true;
+            updateGenerateButton();
+        });
+        document.getElementById('input-html-output').addEventListener('input', function() {
+            htmlOutputManuallySet = true;
+            updateGenerateButton();
+        });
+        document.getElementById('opt-web').addEventListener('change', function() {
+            syncFormatCards();
+            updateGenerateButton();
+        });
+        document.getElementById('opt-html').addEventListener('change', function() {
+            syncFormatCards();
+            updateGenerateButton();
+        });
+        document.getElementById('opt-lang').addEventListener('change', function() {
+            catalogLangManuallySet = true;
+        });
+        document.getElementById('btn-generate').addEventListener('click', function() {
+            doGenerate();
+        });
+
+        // Format cards (click + keyboard)
+        [['card-web', 'opt-web'], ['card-html', 'opt-html']].forEach(function(pair) {
+            var card = document.getElementById(pair[0]);
+            card.addEventListener('click', function() {
+                toggleFormat(pair[1]);
+            });
+            card.addEventListener('keydown', function(e) {
+                if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    toggleFormat(pair[1]);
+                }
+            });
+        });
+
+        // Log collapse toggle
+        document.getElementById('log-header').addEventListener('click', function() {
+            document.getElementById('log-section').classList.toggle('open');
+        });
+
+        // Language dropdown
+        document.getElementById('lang-btn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleLangMenu();
+        });
+        document.addEventListener('click', function(e) {
+            var sw = document.getElementById('lang-switch');
+            if (sw && !sw.contains(e.target)) toggleLangMenu(false);
+        });
+
+        // =====================================================================
+        // Customize modal (branding: logo, header background, footer)
+        // =====================================================================
+
+        // Normalize a #rgb/#rgba/#rrggbb/#rrggbbaa hex to the #rrggbb form that
+        // <input type="color"> accepts; anything else falls back to the default.
+        function normalizeHexColor(h, fallback) {
+            if (/^#[0-9a-fA-F]{3,4}$/.test(h)) {
+                return ('#' + h[1] + h[1] + h[2] + h[2] + h[3] + h[3]).toLowerCase();
+            }
+            if (/^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(h)) {
+                return h.slice(0, 7).toLowerCase();
+            }
+            return fallback;
+        }
+
+        function showCustomizeModal() {
+            var old = document.getElementById('customize-modal');
+            if (old) old.remove();
+
+            var branding = (appConfig && appConfig.branding) || {};
+            var logoValue = branding.logoPath || null;
+            var bgDirty = false;
+
+            var modal = document.createElement('div');
+            modal.id = 'customize-modal';
+
+            var overlay = document.createElement('div');
+            overlay.className = 'dialog-overlay';
+            var box = document.createElement('div');
+            box.className = 'dialog-box';
+
+            var titleEl = document.createElement('div');
+            titleEl.className = 'dialog-title';
+            titleEl.textContent = t('customize');
+            box.appendChild(titleEl);
+
+            // --- Logo ---
+            var logoField = document.createElement('div');
+            logoField.className = 'cust-field';
+            var logoLabel = document.createElement('label');
+            logoLabel.textContent = t('custLogo');
+            logoField.appendChild(logoLabel);
+            var logoRow = document.createElement('div');
+            logoRow.className = 'cust-row';
+            var logoInput = document.createElement('input');
+            logoInput.type = 'text';
+            logoInput.readOnly = true;
+            logoInput.value = logoValue || '';
+            logoRow.appendChild(logoInput);
+            var logoBrowseBtn = document.createElement('button');
+            logoBrowseBtn.className = 'btn';
+            logoBrowseBtn.textContent = t('browse');
+            logoBrowseBtn.addEventListener('click', function() {
+                if (!invoke) { logLine('Tauri not ready', 'error'); return; }
+                invoke('pick_file', { title: t('custLogo') })
+                    .then(function(p) {
+                        if (p) {
+                            logoValue = p;
+                            logoInput.value = p;
+                        }
+                    })
+                    .catch(function(e) { logLine('pick_file error: ' + e, 'error'); });
+            });
+            logoRow.appendChild(logoBrowseBtn);
+            var logoClearBtn = document.createElement('button');
+            logoClearBtn.className = 'btn btn-clear';
+            logoClearBtn.textContent = '×';
+            logoClearBtn.title = t('clear');
+            logoClearBtn.addEventListener('click', function() {
+                logoValue = null;
+                logoInput.value = '';
+            });
+            logoRow.appendChild(logoClearBtn);
+            logoField.appendChild(logoRow);
+            box.appendChild(logoField);
+
+            // --- Header background (solid color or 45deg gradient) ---
+            var DEFAULT_BG = '#2B395C';
+            var prefill1 = DEFAULT_BG, prefill2 = DEFAULT_BG, prefillGrad = false;
+            var hb = branding.headerBackground;
+            if (typeof hb === 'string') {
+                var gm = hb.match(/linear-gradient\(45deg,\s*(#[0-9a-fA-F]{3,8})[^,]*,\s*(#[0-9a-fA-F]{3,8})/);
+                if (gm) {
+                    prefill1 = normalizeHexColor(gm[1], DEFAULT_BG);
+                    prefill2 = normalizeHexColor(gm[2], DEFAULT_BG);
+                    prefillGrad = true;
+                } else if (/^#[0-9a-fA-F]{3,8}$/.test(hb.trim())) {
+                    prefill1 = normalizeHexColor(hb.trim(), DEFAULT_BG);
+                }
+            }
+
+            var bgField = document.createElement('div');
+            bgField.className = 'cust-field';
+            var bgLabel = document.createElement('label');
+            bgLabel.textContent = t('custBackground');
+            bgField.appendChild(bgLabel);
+            var bgRow = document.createElement('div');
+            bgRow.className = 'cust-row';
+
+            var color1 = document.createElement('input');
+            color1.type = 'color';
+            color1.value = prefill1;
+            color1.title = t('custColor1');
+            bgRow.appendChild(color1);
+
+            var gradToggle = document.createElement('label');
+            gradToggle.className = 'toggle';
+            var gradCheck = document.createElement('input');
+            gradCheck.type = 'checkbox';
+            gradCheck.checked = prefillGrad;
+            gradToggle.appendChild(gradCheck);
+            var gradText = document.createElement('span');
+            gradText.textContent = t('custGradient');
+            gradToggle.appendChild(gradText);
+            bgRow.appendChild(gradToggle);
+
+            var color2 = document.createElement('input');
+            color2.type = 'color';
+            color2.value = prefill2;
+            color2.title = t('custColor2');
+            color2.disabled = !prefillGrad;
+            bgRow.appendChild(color2);
+
+            function markBgDirty() { bgDirty = true; }
+            color1.addEventListener('input', markBgDirty);
+            color2.addEventListener('input', markBgDirty);
+            gradCheck.addEventListener('change', function() {
+                bgDirty = true;
+                color2.disabled = !gradCheck.checked;
+            });
+
+            bgField.appendChild(bgRow);
+            box.appendChild(bgField);
+
+            // Footer is intentionally NOT editable in the UI — the attribution
+            // footer is a plain-text default that advanced users can still
+            // change directly in d2h.config.json (branding.footerText/Url/showFooter).
+
+            // --- Note ---
+            var note = document.createElement('div');
+            note.className = 'cust-note';
+            note.textContent = t('custNote');
+            box.appendChild(note);
+
+            // --- Buttons ---
+            var btnContainer = document.createElement('div');
+            btnContainer.className = 'dialog-buttons';
+
+            var cancelBtn = document.createElement('button');
+            cancelBtn.className = 'btn';
+            cancelBtn.textContent = t('cancel');
+            cancelBtn.addEventListener('click', function() { modal.remove(); });
+            btnContainer.appendChild(cancelBtn);
+
+            var saveBtn = document.createElement('button');
+            saveBtn.className = 'btn btn-primary';
+            saveBtn.textContent = t('save');
+            saveBtn.addEventListener('click', function() {
+                if (!invoke) { logLine('Tauri not ready', 'error'); return; }
+                if (!appConfig) appConfig = { branding: {}, defaults: {}, jobId: {} };
+                if (!appConfig.branding) appConfig.branding = {};
+                if (!appConfig.defaults) appConfig.defaults = {};
+                if (!appConfig.jobId) appConfig.jobId = {};
+
+                var b = appConfig.branding;
+                b.logoPath = logoValue; // null → default D2H logo
+                if (bgDirty) {
+                    b.headerBackground = gradCheck.checked
+                        ? 'linear-gradient(45deg, ' + color1.value + ' 0%, ' + color2.value + ' 100%)'
+                        : color1.value;
+                }
+                // Footer is left untouched (not editable in the UI).
+
+                saveBtn.disabled = true;
+                invoke('save_config', { config: appConfig })
+                    .then(function(savedPath) {
+                        logLine(t('savedTo') + ' ' + savedPath, 'success');
+                        modal.remove();
+                    })
+                    .catch(function(e) {
+                        saveBtn.disabled = false;
+                        logLine('save_config error: ' + e, 'error');
+                    });
+            });
+            btnContainer.appendChild(saveBtn);
+            box.appendChild(btnContainer);
+
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) modal.remove();
+            });
+
+            overlay.appendChild(box);
+            modal.appendChild(overlay);
+            document.body.appendChild(modal);
+        }
+
+        document.getElementById('btn-customize').addEventListener('click', function() {
+            showCustomizeModal();
+        });
+
+        // =====================================================================
+        // About dialog (click on the app title / version in the header)
+        // =====================================================================
+
+        // Set to the donation page URL to show the "Buy me a coffee" section.
+        var D2H_DONATE_URL = 'https://revolut.me/stepan2vpo?currency=EUR&amount=500';
+        // Static QR of D2H_DONATE_URL (regenerate if the URL changes)
+        var D2H_DONATE_QR = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37 37" width="120" height="120" shape-rendering="crispEdges"><rect width="37" height="37" fill="#ffffff"/><path d="M2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM12 2h1v1h-1zM14 2h1v1h-1zM16 2h1v1h-1zM20 2h1v1h-1zM21 2h1v1h-1zM22 2h1v1h-1zM24 2h1v1h-1zM25 2h1v1h-1zM28 2h1v1h-1zM29 2h1v1h-1zM30 2h1v1h-1zM31 2h1v1h-1zM32 2h1v1h-1zM33 2h1v1h-1zM34 2h1v1h-1zM2 3h1v1h-1zM8 3h1v1h-1zM12 3h1v1h-1zM13 3h1v1h-1zM14 3h1v1h-1zM17 3h1v1h-1zM18 3h1v1h-1zM20 3h1v1h-1zM23 3h1v1h-1zM24 3h1v1h-1zM26 3h1v1h-1zM28 3h1v1h-1zM34 3h1v1h-1zM2 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM12 4h1v1h-1zM14 4h1v1h-1zM16 4h1v1h-1zM18 4h1v1h-1zM20 4h1v1h-1zM22 4h1v1h-1zM23 4h1v1h-1zM24 4h1v1h-1zM28 4h1v1h-1zM30 4h1v1h-1zM31 4h1v1h-1zM32 4h1v1h-1zM34 4h1v1h-1zM2 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM10 5h1v1h-1zM12 5h1v1h-1zM20 5h1v1h-1zM22 5h1v1h-1zM24 5h1v1h-1zM25 5h1v1h-1zM26 5h1v1h-1zM28 5h1v1h-1zM30 5h1v1h-1zM31 5h1v1h-1zM32 5h1v1h-1zM34 5h1v1h-1zM2 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM11 6h1v1h-1zM15 6h1v1h-1zM16 6h1v1h-1zM17 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM21 6h1v1h-1zM23 6h1v1h-1zM25 6h1v1h-1zM28 6h1v1h-1zM30 6h1v1h-1zM31 6h1v1h-1zM32 6h1v1h-1zM34 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM12 7h1v1h-1zM13 7h1v1h-1zM14 7h1v1h-1zM15 7h1v1h-1zM16 7h1v1h-1zM23 7h1v1h-1zM24 7h1v1h-1zM28 7h1v1h-1zM34 7h1v1h-1zM2 8h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM5 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM29 8h1v1h-1zM30 8h1v1h-1zM31 8h1v1h-1zM32 8h1v1h-1zM33 8h1v1h-1zM34 8h1v1h-1zM10 9h1v1h-1zM16 9h1v1h-1zM18 9h1v1h-1zM23 9h1v1h-1zM24 9h1v1h-1zM26 9h1v1h-1zM2 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM12 10h1v1h-1zM15 10h1v1h-1zM16 10h1v1h-1zM19 10h1v1h-1zM22 10h1v1h-1zM24 10h1v1h-1zM26 10h1v1h-1zM28 10h1v1h-1zM29 10h1v1h-1zM30 10h1v1h-1zM31 10h1v1h-1zM32 10h1v1h-1zM2 11h1v1h-1zM4 11h1v1h-1zM11 11h1v1h-1zM12 11h1v1h-1zM13 11h1v1h-1zM14 11h1v1h-1zM15 11h1v1h-1zM18 11h1v1h-1zM19 11h1v1h-1zM21 11h1v1h-1zM22 11h1v1h-1zM24 11h1v1h-1zM25 11h1v1h-1zM28 11h1v1h-1zM29 11h1v1h-1zM31 11h1v1h-1zM32 11h1v1h-1zM33 11h1v1h-1zM34 11h1v1h-1zM5 12h1v1h-1zM7 12h1v1h-1zM8 12h1v1h-1zM10 12h1v1h-1zM12 12h1v1h-1zM14 12h1v1h-1zM15 12h1v1h-1zM16 12h1v1h-1zM17 12h1v1h-1zM19 12h1v1h-1zM22 12h1v1h-1zM24 12h1v1h-1zM27 12h1v1h-1zM28 12h1v1h-1zM30 12h1v1h-1zM32 12h1v1h-1zM33 12h1v1h-1zM3 13h1v1h-1zM4 13h1v1h-1zM10 13h1v1h-1zM11 13h1v1h-1zM12 13h1v1h-1zM14 13h1v1h-1zM15 13h1v1h-1zM17 13h1v1h-1zM19 13h1v1h-1zM20 13h1v1h-1zM21 13h1v1h-1zM23 13h1v1h-1zM24 13h1v1h-1zM25 13h1v1h-1zM27 13h1v1h-1zM30 13h1v1h-1zM31 13h1v1h-1zM32 13h1v1h-1zM34 13h1v1h-1zM2 14h1v1h-1zM3 14h1v1h-1zM7 14h1v1h-1zM8 14h1v1h-1zM9 14h1v1h-1zM11 14h1v1h-1zM13 14h1v1h-1zM14 14h1v1h-1zM16 14h1v1h-1zM17 14h1v1h-1zM18 14h1v1h-1zM22 14h1v1h-1zM24 14h1v1h-1zM25 14h1v1h-1zM26 14h1v1h-1zM27 14h1v1h-1zM30 14h1v1h-1zM31 14h1v1h-1zM2 15h1v1h-1zM6 15h1v1h-1zM11 15h1v1h-1zM12 15h1v1h-1zM14 15h1v1h-1zM15 15h1v1h-1zM17 15h1v1h-1zM20 15h1v1h-1zM21 15h1v1h-1zM23 15h1v1h-1zM24 15h1v1h-1zM25 15h1v1h-1zM29 15h1v1h-1zM32 15h1v1h-1zM33 15h1v1h-1zM34 15h1v1h-1zM3 16h1v1h-1zM5 16h1v1h-1zM8 16h1v1h-1zM12 16h1v1h-1zM14 16h1v1h-1zM16 16h1v1h-1zM17 16h1v1h-1zM18 16h1v1h-1zM20 16h1v1h-1zM22 16h1v1h-1zM23 16h1v1h-1zM24 16h1v1h-1zM26 16h1v1h-1zM27 16h1v1h-1zM28 16h1v1h-1zM33 16h1v1h-1zM3 17h1v1h-1zM4 17h1v1h-1zM6 17h1v1h-1zM13 17h1v1h-1zM17 17h1v1h-1zM20 17h1v1h-1zM22 17h1v1h-1zM23 17h1v1h-1zM25 17h1v1h-1zM27 17h1v1h-1zM28 17h1v1h-1zM29 17h1v1h-1zM30 17h1v1h-1zM31 17h1v1h-1zM32 17h1v1h-1zM4 18h1v1h-1zM5 18h1v1h-1zM7 18h1v1h-1zM8 18h1v1h-1zM12 18h1v1h-1zM16 18h1v1h-1zM17 18h1v1h-1zM18 18h1v1h-1zM19 18h1v1h-1zM22 18h1v1h-1zM26 18h1v1h-1zM27 18h1v1h-1zM29 18h1v1h-1zM30 18h1v1h-1zM34 18h1v1h-1zM4 19h1v1h-1zM6 19h1v1h-1zM9 19h1v1h-1zM13 19h1v1h-1zM15 19h1v1h-1zM18 19h1v1h-1zM20 19h1v1h-1zM21 19h1v1h-1zM22 19h1v1h-1zM23 19h1v1h-1zM25 19h1v1h-1zM27 19h1v1h-1zM28 19h1v1h-1zM29 19h1v1h-1zM31 19h1v1h-1zM32 19h1v1h-1zM33 19h1v1h-1zM34 19h1v1h-1zM5 20h1v1h-1zM8 20h1v1h-1zM10 20h1v1h-1zM11 20h1v1h-1zM15 20h1v1h-1zM17 20h1v1h-1zM20 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM24 20h1v1h-1zM26 20h1v1h-1zM27 20h1v1h-1zM29 20h1v1h-1zM30 20h1v1h-1zM32 20h1v1h-1zM33 20h1v1h-1zM2 21h1v1h-1zM3 21h1v1h-1zM4 21h1v1h-1zM5 21h1v1h-1zM7 21h1v1h-1zM11 21h1v1h-1zM12 21h1v1h-1zM13 21h1v1h-1zM15 21h1v1h-1zM18 21h1v1h-1zM21 21h1v1h-1zM22 21h1v1h-1zM23 21h1v1h-1zM24 21h1v1h-1zM25 21h1v1h-1zM27 21h1v1h-1zM29 21h1v1h-1zM30 21h1v1h-1zM31 21h1v1h-1zM32 21h1v1h-1zM33 21h1v1h-1zM3 22h1v1h-1zM7 22h1v1h-1zM8 22h1v1h-1zM10 22h1v1h-1zM11 22h1v1h-1zM12 22h1v1h-1zM17 22h1v1h-1zM20 22h1v1h-1zM21 22h1v1h-1zM22 22h1v1h-1zM24 22h1v1h-1zM26 22h1v1h-1zM27 22h1v1h-1zM30 22h1v1h-1zM31 22h1v1h-1zM33 22h1v1h-1zM2 23h1v1h-1zM3 23h1v1h-1zM4 23h1v1h-1zM5 23h1v1h-1zM10 23h1v1h-1zM13 23h1v1h-1zM14 23h1v1h-1zM17 23h1v1h-1zM18 23h1v1h-1zM21 23h1v1h-1zM25 23h1v1h-1zM26 23h1v1h-1zM27 23h1v1h-1zM31 23h1v1h-1zM32 23h1v1h-1zM34 23h1v1h-1zM2 24h1v1h-1zM5 24h1v1h-1zM6 24h1v1h-1zM7 24h1v1h-1zM8 24h1v1h-1zM9 24h1v1h-1zM14 24h1v1h-1zM16 24h1v1h-1zM20 24h1v1h-1zM22 24h1v1h-1zM24 24h1v1h-1zM26 24h1v1h-1zM30 24h1v1h-1zM31 24h1v1h-1zM32 24h1v1h-1zM33 24h1v1h-1zM2 25h1v1h-1zM6 25h1v1h-1zM7 25h1v1h-1zM10 25h1v1h-1zM11 25h1v1h-1zM12 25h1v1h-1zM13 25h1v1h-1zM15 25h1v1h-1zM18 25h1v1h-1zM22 25h1v1h-1zM23 25h1v1h-1zM25 25h1v1h-1zM26 25h1v1h-1zM28 25h1v1h-1zM29 25h1v1h-1zM31 25h1v1h-1zM32 25h1v1h-1zM33 25h1v1h-1zM2 26h1v1h-1zM4 26h1v1h-1zM8 26h1v1h-1zM11 26h1v1h-1zM12 26h1v1h-1zM13 26h1v1h-1zM14 26h1v1h-1zM18 26h1v1h-1zM19 26h1v1h-1zM21 26h1v1h-1zM24 26h1v1h-1zM26 26h1v1h-1zM27 26h1v1h-1zM28 26h1v1h-1zM29 26h1v1h-1zM30 26h1v1h-1zM33 26h1v1h-1zM10 27h1v1h-1zM12 27h1v1h-1zM13 27h1v1h-1zM15 27h1v1h-1zM16 27h1v1h-1zM18 27h1v1h-1zM19 27h1v1h-1zM20 27h1v1h-1zM21 27h1v1h-1zM25 27h1v1h-1zM26 27h1v1h-1zM30 27h1v1h-1zM32 27h1v1h-1zM33 27h1v1h-1zM34 27h1v1h-1zM2 28h1v1h-1zM3 28h1v1h-1zM4 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM7 28h1v1h-1zM8 28h1v1h-1zM12 28h1v1h-1zM13 28h1v1h-1zM14 28h1v1h-1zM15 28h1v1h-1zM16 28h1v1h-1zM17 28h1v1h-1zM19 28h1v1h-1zM22 28h1v1h-1zM24 28h1v1h-1zM25 28h1v1h-1zM26 28h1v1h-1zM28 28h1v1h-1zM30 28h1v1h-1zM32 28h1v1h-1zM33 28h1v1h-1zM2 29h1v1h-1zM8 29h1v1h-1zM10 29h1v1h-1zM11 29h1v1h-1zM14 29h1v1h-1zM15 29h1v1h-1zM16 29h1v1h-1zM19 29h1v1h-1zM20 29h1v1h-1zM22 29h1v1h-1zM23 29h1v1h-1zM25 29h1v1h-1zM26 29h1v1h-1zM30 29h1v1h-1zM31 29h1v1h-1zM32 29h1v1h-1zM33 29h1v1h-1zM34 29h1v1h-1zM2 30h1v1h-1zM4 30h1v1h-1zM5 30h1v1h-1zM6 30h1v1h-1zM8 30h1v1h-1zM10 30h1v1h-1zM12 30h1v1h-1zM13 30h1v1h-1zM16 30h1v1h-1zM17 30h1v1h-1zM18 30h1v1h-1zM22 30h1v1h-1zM24 30h1v1h-1zM26 30h1v1h-1zM27 30h1v1h-1zM28 30h1v1h-1zM29 30h1v1h-1zM30 30h1v1h-1zM31 30h1v1h-1zM2 31h1v1h-1zM4 31h1v1h-1zM5 31h1v1h-1zM6 31h1v1h-1zM8 31h1v1h-1zM10 31h1v1h-1zM11 31h1v1h-1zM14 31h1v1h-1zM16 31h1v1h-1zM17 31h1v1h-1zM19 31h1v1h-1zM20 31h1v1h-1zM21 31h1v1h-1zM24 31h1v1h-1zM25 31h1v1h-1zM26 31h1v1h-1zM27 31h1v1h-1zM30 31h1v1h-1zM31 31h1v1h-1zM33 31h1v1h-1zM34 31h1v1h-1zM2 32h1v1h-1zM4 32h1v1h-1zM5 32h1v1h-1zM6 32h1v1h-1zM8 32h1v1h-1zM10 32h1v1h-1zM11 32h1v1h-1zM13 32h1v1h-1zM15 32h1v1h-1zM16 32h1v1h-1zM17 32h1v1h-1zM18 32h1v1h-1zM19 32h1v1h-1zM23 32h1v1h-1zM24 32h1v1h-1zM25 32h1v1h-1zM26 32h1v1h-1zM28 32h1v1h-1zM29 32h1v1h-1zM2 33h1v1h-1zM8 33h1v1h-1zM11 33h1v1h-1zM14 33h1v1h-1zM16 33h1v1h-1zM17 33h1v1h-1zM20 33h1v1h-1zM22 33h1v1h-1zM23 33h1v1h-1zM24 33h1v1h-1zM25 33h1v1h-1zM26 33h1v1h-1zM27 33h1v1h-1zM30 33h1v1h-1zM31 33h1v1h-1zM32 33h1v1h-1zM2 34h1v1h-1zM3 34h1v1h-1zM4 34h1v1h-1zM5 34h1v1h-1zM6 34h1v1h-1zM7 34h1v1h-1zM8 34h1v1h-1zM10 34h1v1h-1zM12 34h1v1h-1zM14 34h1v1h-1zM17 34h1v1h-1zM18 34h1v1h-1zM19 34h1v1h-1zM20 34h1v1h-1zM24 34h1v1h-1zM25 34h1v1h-1zM26 34h1v1h-1zM27 34h1v1h-1zM29 34h1v1h-1zM33 34h1v1h-1z" fill="#1a1a2e"/></svg>';
+        var D2H_REPO_URL = 'https://github.com/smikes75/d2h';
+        var D2H_AUTHOR_URL = 'https://datahelp.eu';
+
+        var D2H_ABOUT_ICON =
+            '<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 1024 1024">' +
+            '<defs><linearGradient id="aboutbg" x1="0" y1="0" x2="1" y2="1">' +
+            '<stop offset="0" stop-color="#26355F"/><stop offset="1" stop-color="#1A2547"/>' +
+            '</linearGradient></defs>' +
+            '<rect x="60" y="60" width="904" height="904" rx="210" fill="url(#aboutbg)"/>' +
+            '<g fill="none" stroke-linecap="butt">' +
+            '<path d="M 512 200 A 312 312 0 0 1 810 420" stroke="#ffffff" stroke-width="88"/>' +
+            '<path d="M 822 480 A 312 312 0 0 1 700 770" stroke="#F0912D" stroke-width="88"/>' +
+            '<path d="M 640 806 A 312 312 0 0 1 330 750" stroke="#ffffff" stroke-width="88"/>' +
+            '<path d="M 285 705 A 312 312 0 0 1 215 440" stroke="#ffffff" stroke-width="88"/>' +
+            '</g>' +
+            '<path d="M352 430 h120 l40 -40 h160 a30 30 0 0 1 30 30 v190 a30 30 0 0 1 -30 30 h-320 a30 30 0 0 1 -30 -30 v-150 z" fill="#ffffff"/>' +
+            '</svg>';
+
+        function aboutLink(text, url) {
+            var a = document.createElement('span');
+            a.className = 'about-link';
+            a.textContent = text;
+            a.addEventListener('click', function() {
+                if (invoke) {
+                    invoke('open_path', { path: url })
+                        .catch(function(e) { logLine('open_path error: ' + e, 'error'); });
+                }
+            });
+            return a;
+        }
+
+        function showAboutModal() {
+            var old = document.getElementById('about-modal');
+            if (old) old.remove();
+
+            var modal = document.createElement('div');
+            modal.id = 'about-modal';
+            var overlay = document.createElement('div');
+            overlay.className = 'dialog-overlay';
+            var box = document.createElement('div');
+            box.className = 'dialog-box about-box';
+
+            var icon = document.createElement('div');
+            icon.className = 'about-icon';
+            icon.innerHTML = D2H_ABOUT_ICON;
+            box.appendChild(icon);
+
+            var name = document.createElement('div');
+            name.className = 'about-name';
+            name.textContent = 'D2H';
+            box.appendChild(name);
+
+            var ver = document.createElement('div');
+            ver.className = 'about-version';
+            ver.textContent = document.getElementById('app-version').textContent
+                + ' · Directory to HTML catalog generator';
+            box.appendChild(ver);
+
+            var copyright = document.createElement('div');
+            copyright.className = 'about-line';
+            copyright.appendChild(document.createTextNode('© 2026 DataHelp — '));
+            copyright.appendChild(aboutLink('datahelp.eu', D2H_AUTHOR_URL));
+            box.appendChild(copyright);
+
+            var lic = document.createElement('div');
+            lic.className = 'about-line';
+            lic.appendChild(document.createTextNode('Free and open source — '));
+            lic.appendChild(aboutLink('MIT License', D2H_REPO_URL + '/blob/main/LICENSE'));
+            box.appendChild(lic);
+
+            var src = document.createElement('div');
+            src.className = 'about-line';
+            src.appendChild(document.createTextNode('Source code: '));
+            src.appendChild(aboutLink('github.com/smikes75/d2h', D2H_REPO_URL));
+            box.appendChild(src);
+
+            if (D2H_DONATE_URL) {
+                var don = document.createElement('div');
+                don.className = 'about-donate';
+                var donLine = document.createElement('div');
+                donLine.className = 'about-line';
+                donLine.appendChild(document.createTextNode('☕ Enjoying D2H? '));
+                donLine.appendChild(aboutLink('Buy me a coffee (€5)', D2H_DONATE_URL));
+                don.appendChild(donLine);
+                var qrWrap = document.createElement('div');
+                qrWrap.className = 'about-qr';
+                qrWrap.innerHTML = D2H_DONATE_QR;
+                don.appendChild(qrWrap);
+                var qrHint = document.createElement('div');
+                qrHint.className = 'about-line about-qr-hint';
+                qrHint.textContent = 'Scan with your phone';
+                don.appendChild(qrHint);
+                box.appendChild(don);
+            }
+
+            var btnRow = document.createElement('div');
+            btnRow.className = 'dialog-buttons';
+            var okBtn = document.createElement('button');
+            okBtn.className = 'btn btn-primary';
+            okBtn.textContent = t('btnOk');
+            okBtn.addEventListener('click', function() { modal.remove(); });
+            btnRow.appendChild(okBtn);
+            box.appendChild(btnRow);
+
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) modal.remove();
+            });
+            overlay.appendChild(box);
+            modal.appendChild(overlay);
+            document.body.appendChild(modal);
+        }
+
+        document.getElementById('app-title').addEventListener('click', showAboutModal);
+        document.getElementById('app-version').addEventListener('click', showAboutModal);
+
+        // =====================================================================
+        // Dialog Modal (created dynamically) — localized via question.id/params
+        // =====================================================================
+
+        var DIALOG_I18N = {
+            'file_exists':       { title: 'dlgFileExistsTitle', message: 'dlgFileExistsMsg' },
+            'rename_input':      { title: 'dlgRenameTitle', message: 'dlgRenameMsg', inputLabel: 'dlgFilename' },
+            'invalid_case':      { title: 'dlgInvalidJobTitle', message: 'dlgInvalidJobMsg' },
+            'rename_case_input': { title: 'dlgRenameTitle', inputLabel: 'dlgJobNumber' }
+        };
+        var DIALOG_BTN_KEYS = {
+            'overwrite': 'btnOverwrite',
+            'rename': 'btnRename',
+            'cancel': 'btnCancel',
+            'ok': 'btnOk',
+            'keep': 'btnKeep'
+        };
+
+        // Translate dialog title/message/input-label by question.id; interpolate
+        // {0},{1}… with question.params. Unknown ids fall back to backend strings.
+        function translateDialog(question) {
+            var params = question.params || [];
+            var out = {
+                title: question.title || 'Dialog',
+                message: question.message || '',
+                inputLabel: (question.input && question.input.label) || ''
+            };
+            var map = DIALOG_I18N[question.id];
+            if (map) {
+                if (map.title) out.title = t(map.title);
+                if (map.message) {
+                    var tmpl = t(map.message);
+                    // If the template needs params but none arrived, keep backend text
+                    if (/\{\d+\}/.test(tmpl) && params.length === 0 && question.message) {
+                        out.message = question.message;
+                    } else {
+                        out.message = fmt(tmpl, params);
+                    }
+                }
+                if (map.inputLabel && question.input) out.inputLabel = t(map.inputLabel);
+            }
+            return out;
+        }
+
+        function translateDialogButton(btn) {
+            var key = DIALOG_BTN_KEYS[btn.id];
+            return key && UI.en[key] ? t(key) : btn.label;
+        }
+
+        function showDialogModal(question) {
+            try {
+                // Remove any existing modal
+                var old = document.getElementById('dialog-modal');
+                if (old) old.remove();
+
+                var texts = translateDialog(question);
+
+                // Create modal DOM
+                var modal = document.createElement('div');
+                modal.id = 'dialog-modal';
+
+                var overlay = document.createElement('div');
+                overlay.className = 'dialog-overlay';
+
+                var box = document.createElement('div');
+                box.className = 'dialog-box';
+
+                var titleEl = document.createElement('div');
+                titleEl.className = 'dialog-title';
+                titleEl.textContent = texts.title;
+
+                var msgEl = document.createElement('div');
+                msgEl.className = 'dialog-message';
+                msgEl.textContent = texts.message;
+
+                // Optional text input
+                var inputEl = null;
+                if (question.input) {
+                    var inputWrap = document.createElement('div');
+                    inputWrap.style.cssText = 'margin-bottom: 16px;';
+
+                    var inputLabel = document.createElement('label');
+                    inputLabel.style.cssText = 'display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;';
+                    inputLabel.textContent = texts.inputLabel;
+                    inputWrap.appendChild(inputLabel);
+
+                    inputEl = document.createElement('input');
+                    inputEl.type = 'text';
+                    inputEl.value = question.input.default_value || '';
+                    inputEl.style.cssText = 'width: 100%; padding: 8px 10px; border: 1px solid var(--border); background: var(--input-bg); font-size: 14px; box-sizing: border-box;';
+                    inputWrap.appendChild(inputEl);
+
+                    box.appendChild(titleEl);
+                    box.appendChild(msgEl);
+                    box.appendChild(inputWrap);
+                } else {
+                    box.appendChild(titleEl);
+                    box.appendChild(msgEl);
+                }
+
+                var btnContainer = document.createElement('div');
+                btnContainer.className = 'dialog-buttons';
+
+                function closeDialog(answerId) {
+                    // For input dialogs, send the typed value with an "input:" prefix
+                    // so the backend can tell it apart from button ids (a user
+                    // literally typing "cancel" must not cancel the run).
+                    var answer = answerId;
+                    if (inputEl && answerId !== 'cancel') {
+                        answer = 'input:' + inputEl.value.trim();
+                    }
+                    modal.remove();
+                    logLine('User chose: ' + answer, 'info');
+                    invoke('answer_dialog', { answer: answer });
+                }
+
+                var buttons = question.buttons || [];
+                buttons.forEach(function(btn) {
+                    var el = document.createElement('button');
+                    el.className = 'btn';
+                    if (btn.style === 'warning') el.className += ' btn-warning';
+                    if (btn.style === 'primary') el.className += ' btn-primary';
+                    el.textContent = translateDialogButton(btn);
+                    el.addEventListener('click', function() { closeDialog(btn.id); });
+                    btnContainer.appendChild(el);
+                });
+
+                box.appendChild(btnContainer);
+
+                // Click overlay to cancel
+                overlay.addEventListener('click', function(e) {
+                    if (e.target === overlay) { closeDialog('cancel'); }
+                });
+
+                // Enter key confirms (for input dialogs)
+                if (inputEl) {
+                    inputEl.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') { closeDialog('ok'); }
+                        if (e.key === 'Escape') { closeDialog('cancel'); }
+                    });
+                }
+
+                overlay.appendChild(box);
+                modal.appendChild(overlay);
+                document.body.appendChild(modal);
+
+                // Focus the input if present
+                if (inputEl) {
+                    inputEl.focus();
+                    inputEl.select();
+                }
+
+                logLine('Dialog shown: ' + (texts.title || '?'), 'info');
+            } catch (err) {
+                logLine('Dialog error: ' + err, 'error');
+                invoke('answer_dialog', { answer: 'cancel' });
+            }
+        }
+
+        // --- Init ---
+        buildLangMenu();
+        syncFormatCards();
+        setStatus('idle');
+        // Apply language immediately (localStorage -> navigator); config default
+        // (defaults.uiLanguage) is applied later when get_config resolves.
+        setUILanguage(lsGet('d2h_ui_lang') || detectNavLang(), false);
+        updateGenerateButton();
+    </script>
+
+</body>
+</html>

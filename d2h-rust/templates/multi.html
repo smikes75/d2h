@@ -1,0 +1,76 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <title>{{TITLE}}</title>
+    <style>{{CSS}}</style>
+    <script src="pako.min.js"></script>
+    <script>
+        // Fallback to CDN if local pako.min.js is not available
+        if (typeof pako === 'undefined') {
+            var s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
+            document.head.appendChild(s);
+        }
+    </script>
+</head>
+<body>
+    <div id="wrapper">
+        <div class="app_header">
+            <div class="header-left">
+                <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Menu">&#9776;</button>
+                <div class="app_header_icon"></div>
+            </div>
+            <div class="header-center">
+                <h1>{{TITLE}}</h1>
+                <div class="app_header_stats">{{STATS}}</div>
+            </div>
+            <div class="header-right">
+                <div class="view-toggle">
+                    <button id="toggle-tree-btn" class="toggle-btn active" onclick="showTree()" title="{{LABEL_FILE_LISTING}}">{{LABEL_TREE}}</button>
+                    <button id="toggle-stats-btn" class="toggle-btn" onclick="showStatistics()" title="{{LABEL_FOLDER_STATS}}">{{LABEL_STATS}}</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-wrapper">
+            <div class="tree-overlay-backdrop" id="tree-backdrop" onclick="closeMobileMenu()"></div>
+            <div class="tree" id="tree">
+                <div class="tree-overlay-header">
+                    <span>{{LABEL_BROWSE_FOLDERS}}</span>
+                    <button class="tree-close-btn" onclick="closeMobileMenu()" aria-label="Close">&times;</button>
+                </div>
+                <div class="loading">{{LABEL_LOADING}}...</div>
+            </div>
+            <div class="tree-resize-handle" id="tree-resize"></div>
+            <div class="content" id="content">
+                <div id="breadcrumb" class="breadcrumb">
+                    <div id="breadcrumb-path" class="breadcrumb-path"></div>
+                    <form id="search_form" class="breadcrumb-search" action="#">
+                        <input type="search" id="search_text" placeholder="{{LABEL_SEARCH_MIN}}">
+                    </form>
+                </div>
+                <div id="content-table-wrapper">
+                    <div id="content-table">
+                         <div class="loading"><span class="loading-spinner"></span>{{LABEL_LOADING}}...</div>
+                    </div>
+                </div>
+                <div id="content-footer" class="content-footer"></div>
+            </div>
+        </div>
+        {{FOOTER_HTML}}
+    </div>
+
+    <script>
+        var useCompression = true;
+        var compressedIndexB64 = null;
+        var compressedChunksB64 = null;
+        var compressedSearchB64 = null;
+        var statsData = {{STATS_INLINE}};
+    </script>
+    <script>{{JS_NOINIT}}</script>
+    <script>{{EXTERNAL_LOADER}}</script>
+</body>
+</html>

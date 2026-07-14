@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# Local build artifacts — distribute binaries via GitHub Releases, not git
+builds/
+*.exe
+*.dmg
+
+# IDE
+.idea/
+.vscode/
+*.swp

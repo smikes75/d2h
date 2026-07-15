@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 pub const APP_NAME: &str = "D2H";
-pub const APP_VERSION: &str = "1.6.1-beta";
+pub const APP_VERSION: &str = "1.6.2-beta";
 pub const CHUNK_SIZE: usize = 100;
 
 const PACKAGE_EXTENSIONS: &[&str] = &[

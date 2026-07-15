@@ -93,6 +93,7 @@
         .lang-flag svg { display: block; }
         .lang-caret { font-size: 9px; opacity: 0.7; }
         .lang-menu {
+            display: none;
             position: absolute;
             right: 0;
             top: calc(100% + 6px);
@@ -104,6 +105,7 @@
             z-index: 10000;
             padding: 4px 0;
         }
+        .lang-menu.open { display: block; }
         .lang-item {
             display: flex;
             align-items: center;
@@ -604,14 +606,14 @@
 <body>
     <div class="gui-header">
         <h1 id="app-title" data-i18n-title="about" title="About">D2H</h1>
-        <span class="version" id="app-version" data-i18n-title="about" title="About">v1.6.1-beta</span>
+        <span class="version" id="app-version" data-i18n-title="about" title="About">v1.6.2-beta</span>
         <div class="lang-switch" id="lang-switch">
             <button class="lang-btn" id="lang-btn" aria-haspopup="listbox">
                 <span class="lang-flag" id="lang-flag"></span>
                 <span id="lang-code">EN</span>
                 <span class="lang-caret">&#9662;</span>
             </button>
-            <div class="lang-menu" id="lang-menu" style="display:none"></div>
+            <div class="lang-menu" id="lang-menu"></div>
         </div>
         <button class="gear-btn" id="btn-customize" data-i18n-title="customize" title="Customize" aria-haspopup="dialog">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -1368,8 +1370,8 @@
 
         function toggleLangMenu(show) {
             var menu = document.getElementById('lang-menu');
-            if (show === undefined) show = menu.style.display === 'none';
-            menu.style.display = show ? 'block' : 'none';
+            if (show === undefined) show = !menu.classList.contains('open');
+            menu.classList.toggle('open', show);
         }
 
         // =====================================================================
@@ -1789,7 +1791,7 @@
                 theme: document.getElementById('opt-theme').value,
             };
 
-            logLine('D2H v1.6.1-beta', 'info');
+            logLine('D2H v1.6.2-beta', 'info');
             logLine('Source: ' + dir, 'info');
             if (generateWeb) logLine('Web output: ' + webOutput, 'info');
             if (generateHtml) logLine('HTML output: ' + htmlOutput, 'info');
@@ -1926,6 +1928,10 @@
             var sw = document.getElementById('lang-switch');
             if (sw && !sw.contains(e.target)) toggleLangMenu(false);
         });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') toggleLangMenu(false);
+        });
+        window.addEventListener('blur', function() { toggleLangMenu(false); });
 
         // =====================================================================
         // Customize modal (branding: logo, header background, footer)
@@ -2412,6 +2418,10 @@
 
         // --- Init ---
         buildLangMenu();
+        // The lang button is the first focusable element; a stray Enter/Space
+        // right after launch (e.g. dismissing the OS security prompt) would
+        // open the menu. Drop any initial focus so keys land nowhere.
+        if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
         syncFormatCards();
         setStatus('idle');
         // Apply language immediately (localStorage -> navigator); config default

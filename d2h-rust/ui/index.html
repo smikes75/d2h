@@ -193,6 +193,7 @@
         }
         .config-section:last-child { border-bottom: none; }
 
+        .config-section.push-bottom { margin-top: auto; }
         .config-section h2 {
             font-size: 11px;
             text-transform: uppercase;
@@ -292,36 +293,71 @@
 
         /* --- Drop zone --- */
         .drop-zone {
-            border: 2px dashed var(--border);
-            border-radius: 6px;
+            border: 1.5px dashed var(--border);
+            border-radius: 8px;
             background: var(--input-bg);
-            padding: 16px 12px 12px;
-            text-align: center;
+            padding: 22px 14px;
+            cursor: pointer;
             transition: border-color 0.15s, background 0.15s;
         }
-        .drop-zone:hover { border-color: #adb5bd; }
-        .drop-zone.dragging {
+        .drop-zone:hover, .drop-zone.dragging {
             border-color: var(--accent);
             background: var(--accent-soft);
         }
-        .drop-zone .drop-icon {
-            font-size: 24px;
-            line-height: 1;
-            margin-bottom: 8px;
-        }
-        .drop-zone .drop-text {
-            font-size: 12.5px;
-            color: var(--text-secondary);
+        .drop-zone .dz-empty {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 10px;
+            color: var(--text-secondary);
+            font-size: 13px;
             flex-wrap: wrap;
         }
-        .drop-zone input[type="text"] {
-            margin-top: 10px;
-            font-size: 12px;
+        .drop-zone .dz-empty b { color: var(--accent); font-weight: 600; }
+        .drop-zone .dz-empty svg, .drop-zone .dz-selected svg { flex: none; }
+        .drop-zone.selected {
+            border-style: solid;
             background: var(--panel-bg);
+            padding: 10px 12px;
+        }
+        .drop-zone.selected:hover { background: var(--accent-soft); }
+        /* Visibility is class-driven on the parent — Tauri's CSP strips
+           inline style attributes (style-src hash beats 'unsafe-inline'),
+           so `style="display:none"` in markup silently does nothing. */
+        .drop-zone .dz-selected { display: none; }
+        .drop-zone.selected .dz-empty { display: none; }
+        .drop-zone.selected .dz-selected {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .drop-zone .dz-meta { min-width: 0; flex: 1; text-align: left; }
+        .drop-zone .dz-name {
+            font-size: 13.5px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .drop-zone .dz-path {
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            direction: rtl;
+            text-align: left;
+        }
+        .drop-zone .dz-change {
+            flex: none;
+            font-size: 12px;
+            color: var(--accent);
+            text-decoration: underline;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            padding: 2px 4px;
         }
 
         /* --- Format cards --- */
@@ -534,6 +570,7 @@
         .status-card.error .status-title { color: var(--error); }
         .status-line { font-size: 13px; margin-bottom: 3px; word-break: break-all; }
         .status-line.warn { color: #e65100; font-weight: 600; }
+        .status-line.ok { color: #1b7a3d; font-weight: 600; }
         .status-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
         .status-progress {
             display: flex;
@@ -606,7 +643,7 @@
 <body>
     <div class="gui-header">
         <h1 id="app-title" data-i18n-title="about" title="About">D2H</h1>
-        <span class="version" id="app-version" data-i18n-title="about" title="About">v1.6.2-beta</span>
+        <span class="version" id="app-version" data-i18n-title="about" title="About">v1.7.0-beta</span>
         <div class="lang-switch" id="lang-switch">
             <button class="lang-btn" id="lang-btn" aria-haspopup="listbox">
                 <span class="lang-flag" id="lang-flag"></span>
@@ -626,14 +663,21 @@
             <div class="config-section">
                 <h2 data-i18n="sectionSource" data-i18n-num="1">Source</h2>
                 <div class="field">
-                    <label data-i18n="dirToScan">Directory to scan</label>
                     <div class="drop-zone" id="drop-zone">
-                        <div class="drop-icon">&#128193;</div>
-                        <div class="drop-text">
+                        <div class="dz-empty" id="dz-empty">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                             <span data-i18n="dropHint">Drop a folder here or</span>
-                            <button class="btn" id="btn-browse-dir" data-i18n="browse">Browse</button>
+                            <b data-i18n="browseLink">browse&#8230;</b>
                         </div>
-                        <input type="text" id="input-dir" readonly>
+                        <div class="dz-selected" id="dz-selected">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                            <div class="dz-meta">
+                                <div class="dz-name" id="dz-name"></div>
+                                <div class="dz-path" id="dz-path"></div>
+                            </div>
+                            <button class="dz-change" data-i18n="changeDir">change</button>
+                        </div>
+                        <input type="text" id="input-dir" readonly hidden>
                     </div>
                 </div>
             </div>
@@ -664,32 +708,11 @@
                         <input type="checkbox" id="opt-html" checked>
                     </div>
                 </div>
-                <div class="field" id="field-web-output" style="display:none">
-                    <label data-i18n="webOutputDir">Web output directory</label>
-                    <div class="field-row">
-                        <input type="text" id="input-web-output" data-i18n-placeholder="webOutputDir">
-                        <button class="btn" id="btn-browse-web-output" data-i18n="browse">Browse</button>
-                    </div>
-                </div>
-                <div class="field" id="field-html-output">
-                    <label data-i18n="htmlOutputDir">HTML output directory</label>
-                    <div class="field-row">
-                        <input type="text" id="input-html-output" data-i18n-placeholder="htmlOutputDir">
-                        <button class="btn" id="btn-browse-html-output" data-i18n="browse">Browse</button>
-                    </div>
-                </div>
-                <div class="field">
-                    <label data-i18n="catalogLanguage">Catalog language (for the customer)</label>
-                    <select id="opt-lang" class="d2h-select">
-                        <option value="en" selected>English</option>
-                        <option value="cz">&#268;e&#353;tina</option>
-                        <option value="de">Deutsch</option>
-                        <option value="it">Italiano</option>
-                        <option value="es">Espa&ntilde;ol</option>
-                        <option value="fr">Fran&ccedil;ais</option>
-                        <option value="pl">Polski</option>
-                    </select>
-                </div>
+                <!-- Output directories live in the Customize dialog (gear icon).
+                     Empty dir = deferred save: the user picks a location after
+                     generation via a native Save dialog. -->
+                <!-- Catalog language follows the app UI language; an override
+                     lives in the Customize dialog, job-id rules win per job. -->
             </div>
 
             <div class="config-section">
@@ -733,7 +756,7 @@
                 </details>
             </div>
 
-            <div class="config-section" style="margin-top: auto;">
+            <div class="config-section push-bottom">
                 <h2 data-i18n="generate" data-i18n-num="3">Generate</h2>
                 <button class="btn btn-primary btn-full" id="btn-generate" data-i18n="generate" disabled>
                     Generate
@@ -761,9 +784,18 @@
         var invoke = null;
         var generating = false;
         var lastOutputDir = null;
-        var webOutputManuallySet = false;
-        var htmlOutputManuallySet = false;
-        var catalogLangManuallySet = false;
+        // Catalog language of the matched job-id rule (per selected source);
+        // wins over the settings override and the UI language.
+        var ruleCatalogLang = null;
+        var CATALOG_LANGS = ['en', 'cz', 'de', 'it', 'es', 'fr', 'pl'];
+
+        // rule > settings override > app UI language
+        function effectiveCatalogLang() {
+            var l = ruleCatalogLang
+                || (appConfig && appConfig.defaults && appConfig.defaults.language)
+                || uiLang;
+            return CATALOG_LANGS.indexOf(l) >= 0 ? l : 'en';
+        }
         var appConfig = null; // loaded from d2h.config.json via get_config
         var dragDropSetupDone = false;
 
@@ -819,6 +851,23 @@
                 logTab: "Log",
                 openFolder: "Open folder",
                 openHtml: "Open HTML",
+                preview: "Preview",
+                saveHtml: "Save HTML…",
+                saveTarGz: "Save web package…",
+                notSavedYet: "not saved yet",
+                unsavedTitle: "Unsaved result",
+                unsavedMsg: "The generated catalog has not been saved. Close anyway?",
+                closeAnyway: "Close without saving",
+                goBack: "Back",
+                browseLink: "browse…",
+                changeDir: "change",
+                aboutSupport: "About D2H · Support the project ☕",
+                saveHtmlElsewhere: "Save HTML elsewhere…",
+                saveTarGzElsewhere: "Save package elsewhere…",
+                sameAsAppLang: "Same as app language",
+                yes: "Yes",
+                askWhenEmpty: "empty = ask when saving",
+                rememberFolder: "Always save to this folder?",
                 done: "Complete!",
                 starting: "Starting…",
                 filesIn: "files in",
@@ -884,6 +933,23 @@
                 logTab: "Log",
                 openFolder: "Otevřít složku",
                 openHtml: "Otevřít HTML",
+                preview: "Náhled",
+                saveHtml: "Uložit HTML…",
+                saveTarGz: "Uložit webový balíček…",
+                notSavedYet: "zatím neuloženo",
+                unsavedTitle: "Neuložený výsledek",
+                unsavedMsg: "Vygenerovaný katalog nebyl uložen. Opravdu zavřít?",
+                closeAnyway: "Zavřít bez uložení",
+                goBack: "Zpět",
+                browseLink: "procházet…",
+                changeDir: "změnit",
+                aboutSupport: "O aplikaci D2H · Podpořte vývoj ☕",
+                saveHtmlElsewhere: "Uložit HTML jinam…",
+                saveTarGzElsewhere: "Uložit balíček jinam…",
+                sameAsAppLang: "Stejný jako jazyk aplikace",
+                yes: "Ano",
+                askWhenEmpty: "prázdné = zeptá se při uložení",
+                rememberFolder: "Ukládat do této složky vždy?",
                 done: "Hotovo!",
                 starting: "Spouštění…",
                 filesIn: "souborů v",
@@ -949,6 +1015,23 @@
                 logTab: "Protokoll",
                 openFolder: "Ordner öffnen",
                 openHtml: "HTML öffnen",
+                preview: "Vorschau",
+                saveHtml: "HTML speichern…",
+                saveTarGz: "Web-Paket speichern…",
+                notSavedYet: "noch nicht gespeichert",
+                unsavedTitle: "Ungespeichertes Ergebnis",
+                unsavedMsg: "Der erzeugte Katalog wurde nicht gespeichert. Trotzdem schließen?",
+                closeAnyway: "Ohne Speichern schließen",
+                goBack: "Zurück",
+                browseLink: "durchsuchen…",
+                changeDir: "ändern",
+                aboutSupport: "Über D2H · Projekt unterstützen ☕",
+                saveHtmlElsewhere: "HTML woanders speichern…",
+                saveTarGzElsewhere: "Paket woanders speichern…",
+                sameAsAppLang: "Wie die App-Sprache",
+                yes: "Ja",
+                askWhenEmpty: "leer = beim Speichern fragen",
+                rememberFolder: "Immer in diesen Ordner speichern?",
                 done: "Fertig!",
                 starting: "Wird gestartet…",
                 filesIn: "Dateien in",
@@ -1014,6 +1097,23 @@
                 logTab: "Log",
                 openFolder: "Apri cartella",
                 openHtml: "Apri HTML",
+                preview: "Anteprima",
+                saveHtml: "Salva HTML…",
+                saveTarGz: "Salva pacchetto web…",
+                notSavedYet: "non ancora salvato",
+                unsavedTitle: "Risultato non salvato",
+                unsavedMsg: "Il catalogo generato non è stato salvato. Chiudere comunque?",
+                closeAnyway: "Chiudi senza salvare",
+                goBack: "Indietro",
+                browseLink: "sfoglia…",
+                changeDir: "cambia",
+                aboutSupport: "Informazioni su D2H · Sostieni il progetto ☕",
+                saveHtmlElsewhere: "Salva HTML altrove…",
+                saveTarGzElsewhere: "Salva pacchetto altrove…",
+                sameAsAppLang: "Come la lingua dell'app",
+                yes: "Sì",
+                askWhenEmpty: "vuoto = chiedi al salvataggio",
+                rememberFolder: "Salvare sempre in questa cartella?",
                 done: "Completato!",
                 starting: "Avvio…",
                 filesIn: "file in",
@@ -1079,6 +1179,23 @@
                 logTab: "Registro",
                 openFolder: "Abrir carpeta",
                 openHtml: "Abrir HTML",
+                preview: "Vista previa",
+                saveHtml: "Guardar HTML…",
+                saveTarGz: "Guardar paquete web…",
+                notSavedYet: "aún sin guardar",
+                unsavedTitle: "Resultado sin guardar",
+                unsavedMsg: "El catálogo generado no se ha guardado. ¿Cerrar de todos modos?",
+                closeAnyway: "Cerrar sin guardar",
+                goBack: "Volver",
+                browseLink: "explorar…",
+                changeDir: "cambiar",
+                aboutSupport: "Acerca de D2H · Apoya el proyecto ☕",
+                saveHtmlElsewhere: "Guardar HTML en otro lugar…",
+                saveTarGzElsewhere: "Guardar paquete en otro lugar…",
+                sameAsAppLang: "Igual que el idioma de la app",
+                yes: "Sí",
+                askWhenEmpty: "vacío = preguntar al guardar",
+                rememberFolder: "¿Guardar siempre en esta carpeta?",
                 done: "¡Completado!",
                 starting: "Iniciando…",
                 filesIn: "archivos en",
@@ -1144,6 +1261,23 @@
                 logTab: "Journal",
                 openFolder: "Ouvrir le dossier",
                 openHtml: "Ouvrir le HTML",
+                preview: "Aperçu",
+                saveHtml: "Enregistrer le HTML…",
+                saveTarGz: "Enregistrer le paquet web…",
+                notSavedYet: "pas encore enregistré",
+                unsavedTitle: "Résultat non enregistré",
+                unsavedMsg: "Le catalogue généré n'a pas été enregistré. Fermer quand même ?",
+                closeAnyway: "Fermer sans enregistrer",
+                goBack: "Retour",
+                browseLink: "parcourir…",
+                changeDir: "changer",
+                aboutSupport: "À propos de D2H · Soutenir le projet ☕",
+                saveHtmlElsewhere: "Enregistrer le HTML ailleurs…",
+                saveTarGzElsewhere: "Enregistrer le paquet ailleurs…",
+                sameAsAppLang: "Identique à la langue de l'app",
+                yes: "Oui",
+                askWhenEmpty: "vide = demander à l'enregistrement",
+                rememberFolder: "Toujours enregistrer dans ce dossier ?",
                 done: "Terminé !",
                 starting: "Démarrage…",
                 filesIn: "fichiers dans",
@@ -1209,6 +1343,23 @@
                 logTab: "Dziennik",
                 openFolder: "Otwórz folder",
                 openHtml: "Otwórz HTML",
+                preview: "Podgląd",
+                saveHtml: "Zapisz HTML…",
+                saveTarGz: "Zapisz pakiet web…",
+                notSavedYet: "jeszcze nie zapisano",
+                unsavedTitle: "Niezapisany wynik",
+                unsavedMsg: "Wygenerowany katalog nie został zapisany. Zamknąć mimo to?",
+                closeAnyway: "Zamknij bez zapisywania",
+                goBack: "Wstecz",
+                browseLink: "przeglądaj…",
+                changeDir: "zmień",
+                aboutSupport: "O aplikacji D2H · Wesprzyj projekt ☕",
+                saveHtmlElsewhere: "Zapisz HTML gdzie indziej…",
+                saveTarGzElsewhere: "Zapisz pakiet gdzie indziej…",
+                sameAsAppLang: "Taki jak język aplikacji",
+                yes: "Tak",
+                askWhenEmpty: "puste = zapyta przy zapisie",
+                rememberFolder: "Zawsze zapisywać do tego folderu?",
                 done: "Gotowe!",
                 starting: "Uruchamianie…",
                 filesIn: "plików w",
@@ -1270,8 +1421,9 @@
             try { localStorage.setItem(key, value); } catch (e) {}
         }
 
-        function detectNavLang() {
-            var n = (navigator.language || '').toLowerCase();
+        // Map a BCP-47 / POSIX locale string to a UI language code, or null.
+        function mapLocale(locale) {
+            var n = (locale || '').toLowerCase();
             if (n.indexOf('cs') === 0) return 'cz';
             if (n.indexOf('de') === 0) return 'de';
             if (n.indexOf('it') === 0) return 'it';
@@ -1279,7 +1431,14 @@
             if (n.indexOf('fr') === 0) return 'fr';
             if (n.indexOf('pl') === 0) return 'pl';
             if (n.indexOf('en') === 0) return 'en';
-            return 'en';
+            return null;
+        }
+
+        // navigator.language is unreliable in WebViews (WKWebView reports the
+        // app bundle localization, i.e. 'en'); the real OS locale arrives
+        // later via get_config (osLocale) and upgrades this initial guess.
+        function detectNavLang() {
+            return mapLocale(navigator.language) || 'en';
         }
 
         function setUILanguage(lang, persist) {
@@ -1287,16 +1446,17 @@
             uiLang = lang;
             if (persist) lsSet('d2h_ui_lang', lang);
 
-            // The flag is the master language: switching the UI language also
-            // switches the customer catalog language (still overridable in the
-            // select afterwards; config jobId rules keep overriding per job).
-            var catalogSel = document.getElementById('opt-lang');
-            if (catalogSel) {
-                var hasOption = false;
-                for (var oi = 0; oi < catalogSel.options.length; oi++) {
-                    if (catalogSel.options[oi].value === lang) { hasOption = true; break; }
+            // The flag is the master language: clicking it (persist=true)
+            // clears any stored catalog-language override, so the catalog
+            // follows the flag again. The override lives only from a manual
+            // change in settings until the next flag click.
+            if (persist && appConfig && appConfig.defaults && appConfig.defaults.language) {
+                appConfig.defaults.language = null;
+                logLine('Catalog language now follows the app language', 'info');
+                if (invoke) {
+                    invoke('save_config', { config: appConfig })
+                        .catch(function(e) { logLine('save_config error: ' + e, 'error'); });
                 }
-                catalogSel.value = hasOption ? lang : 'en';
             }
 
             // Static labels
@@ -1331,19 +1491,7 @@
                 items[k].classList.toggle('active', items[k].getAttribute('data-lang') === lang);
             }
 
-            syncCatalogLang();
             renderStatus();
-        }
-
-        // Default the catalog (output) language to the UI language, but only
-        // while the user hasn't touched it and the config has no explicit default.
-        function syncCatalogLang() {
-            if (catalogLangManuallySet) return;
-            if (appConfig && appConfig.defaults && appConfig.defaults.language) return;
-            var sel = document.getElementById('opt-lang');
-            for (var i = 0; i < sel.options.length; i++) {
-                if (sel.options[i].value === uiLang) { sel.value = uiLang; return; }
-            }
         }
 
         function buildLangMenu() {
@@ -1383,6 +1531,7 @@
                 invoke = window.__TAURI__.core.invoke;
                 logLine('Tauri API ready', 'success');
                 setupDragDrop();
+                setupCloseGuard();
                 loadAppConfig();
                 return true;
             }
@@ -1400,7 +1549,7 @@
                     } else {
                         logLine('No d2h.config.json found — using neutral defaults', 'info');
                     }
-                    resolveUILanguageFromConfig();
+                    resolveUILanguageFromConfig(info.osLocale);
                     applyConfigDefaults();
                 })
                 .catch(function(e) {
@@ -1408,28 +1557,52 @@
                 });
         }
 
-        // Resolution order: localStorage -> config defaults.uiLanguage -> navigator -> 'en'.
-        // The navigator-based default is already applied at startup; here we only
-        // upgrade to the config value when the user has no stored preference.
-        function resolveUILanguageFromConfig() {
+        // Resolve output dirs for a source path, per format: a matching job-id
+        // rule wins over settings defaults; null = deferred (ask when saving).
+        function resolveOutputDirs(dirPath) {
+            var d = (appConfig && appConfig.defaults) || {};
+            var out = { web: d.webOutputDir || null, html: d.htmlOutputDir || null };
+            var rules = (appConfig && appConfig.jobId && appConfig.jobId.rules) || [];
+            if (dirPath && rules.length) {
+                var sep = dirPath.indexOf('\\') >= 0 ? '\\' : '/';
+                var parts = dirPath.split(sep).filter(function(p) { return p.length > 0; });
+                var dirName = parts[parts.length - 1] || '';
+                for (var i = 0; i < rules.length; i++) {
+                    var re;
+                    try { re = new RegExp(rules[i].match); } catch (e) { continue; }
+                    if (!re.test(dirName)) continue;
+                    if (rules[i].webOutputDir) out.web = rules[i].webOutputDir;
+                    if (rules[i].htmlOutputDir) out.html = rules[i].htmlOutputDir;
+                    break; // first match wins
+                }
+            }
+            return out;
+        }
+
+        function parentDir(path) {
+            var sep = path.indexOf('\\') >= 0 ? '\\' : '/';
+            var idx = path.lastIndexOf(sep);
+            return idx > 0 ? path.substring(0, idx) : path;
+        }
+
+        // Resolution order: localStorage (explicit flag click) -> config
+        // defaults.uiLanguage -> OS locale (from the backend) -> navigator -> 'en'.
+        // The navigator-based default is already applied at startup; here we
+        // upgrade it once get_config delivers the config and the OS locale.
+        function resolveUILanguageFromConfig(osLocale) {
             if (lsGet('d2h_ui_lang')) return;
             if (appConfig && appConfig.defaults && appConfig.defaults.uiLanguage && UI[appConfig.defaults.uiLanguage]) {
                 setUILanguage(appConfig.defaults.uiLanguage, false);
+                return;
             }
+            var osLang = mapLocale(osLocale);
+            if (osLang && osLang !== uiLang) setUILanguage(osLang, false);
         }
 
         function applyConfigDefaults() {
-            if (!appConfig || !appConfig.defaults) { syncCatalogLang(); updateGenerateButton(); return; }
+            if (!appConfig || !appConfig.defaults) { updateGenerateButton(); return; }
             var d = appConfig.defaults;
-            if (d.language) document.getElementById('opt-lang').value = d.language;
             if (d.theme) document.getElementById('opt-theme').value = d.theme;
-            if (d.webOutputDir && !webOutputManuallySet) {
-                document.getElementById('input-web-output').value = d.webOutputDir;
-            }
-            if (d.htmlOutputDir && !htmlOutputManuallySet) {
-                document.getElementById('input-html-output').value = d.htmlOutputDir;
-            }
-            syncCatalogLang();
             updateGenerateButton();
         }
 
@@ -1459,7 +1632,7 @@
                     if (dz) dz.classList.remove('dragging');
                     var p = e && e.payload && e.payload.paths && e.payload.paths[0];
                     if (p) {
-                        document.getElementById('input-dir').value = p;
+                        setSourceDir(p);
                         applyAutoDefaults(p);
                         updateGenerateButton();
                     }
@@ -1480,6 +1653,22 @@
 
         // --- Directory / File Pickers ---
 
+        // Update the source drop-zone: empty hint vs. selected-folder chip
+        // (name + full path, truncated from the left). The hidden #input-dir
+        // stays the single source of truth for the rest of the logic.
+        function setSourceDir(p) {
+            document.getElementById('input-dir').value = p || '';
+            // Class on the parent drives which child shows (see CSS note).
+            document.getElementById('drop-zone').classList.toggle('selected', !!p);
+            if (p) {
+                var sep = p.indexOf('\\') >= 0 ? '\\' : '/';
+                var parts = p.split(sep).filter(function(x) { return x.length > 0; });
+                document.getElementById('dz-name').textContent = parts[parts.length - 1] || p;
+                // LRM keeps the leading slash rendering sane under direction:rtl
+                document.getElementById('dz-path').textContent = '‎' + p;
+            }
+        }
+
         function pickDirectory() {
             logLine('pickDirectory() called', 'info');
             if (!invoke) { logLine('Tauri not ready', 'error'); return; }
@@ -1487,7 +1676,7 @@
                 .then(function(dir) {
                     logLine('pick_directory result: ' + dir, 'info');
                     if (dir) {
-                        document.getElementById('input-dir').value = dir;
+                        setSourceDir(dir);
                         applyAutoDefaults(dir);
                         updateGenerateButton();
                     }
@@ -1502,6 +1691,7 @@
         // First rule whose regex matches the source directory name wins.
         // Without a config file nothing happens (neutral public behavior).
         function applyAutoDefaults(dirPath) {
+            ruleCatalogLang = null; // reset per selected source
             if (!appConfig || !appConfig.jobId || !appConfig.jobId.rules) return;
             var sep = dirPath.indexOf('\\') >= 0 ? '\\' : '/';
             var parts = dirPath.split(sep).filter(function(p) { return p.length > 0; });
@@ -1517,52 +1707,13 @@
                 }
                 if (!re.test(dirName)) continue;
 
-                if (rule.language) {
-                    document.getElementById('opt-lang').value = rule.language;
-                    catalogLangManuallySet = true; // rule-driven, don't override on UI language switch
-                }
+                if (rule.language) ruleCatalogLang = rule.language;
                 if (rule.theme) document.getElementById('opt-theme').value = rule.theme;
-                if (rule.webOutputDir && !webOutputManuallySet) {
-                    document.getElementById('input-web-output').value = rule.webOutputDir;
-                }
-                if (rule.htmlOutputDir && !htmlOutputManuallySet) {
-                    document.getElementById('input-html-output').value = rule.htmlOutputDir;
-                }
                 logLine('Auto: rule ' + (i + 1) + ' matched "' + dirName + '"' +
                     (rule.language ? ' → lang ' + rule.language : '') +
                     (rule.webOutputDir ? ' → ' + rule.webOutputDir : ''), 'info');
                 return; // first match wins
             }
-        }
-
-        function pickWebOutputDirectory() {
-            if (!invoke) { logLine('Tauri not ready', 'error'); return; }
-            invoke('pick_directory', { title: 'Select web output directory' })
-                .then(function(dir) {
-                    if (dir) {
-                        document.getElementById('input-web-output').value = dir;
-                        webOutputManuallySet = true;
-                        updateGenerateButton();
-                    }
-                })
-                .catch(function(e) {
-                    logLine('pick_directory error: ' + e, 'error');
-                });
-        }
-
-        function pickHtmlOutputDirectory() {
-            if (!invoke) { logLine('Tauri not ready', 'error'); return; }
-            invoke('pick_directory', { title: 'Select HTML output directory' })
-                .then(function(dir) {
-                    if (dir) {
-                        document.getElementById('input-html-output').value = dir;
-                        htmlOutputManuallySet = true;
-                        updateGenerateButton();
-                    }
-                })
-                .catch(function(e) {
-                    logLine('pick_directory error: ' + e, 'error');
-                });
         }
 
         // --- Format cards <-> hidden checkboxes ---
@@ -1593,22 +1744,11 @@
             updateGenerateButton();
         }
 
-        function updateOutputFields() {
-            var webChecked = document.getElementById('opt-web').checked;
-            var htmlChecked = document.getElementById('opt-html').checked;
-            document.getElementById('field-web-output').style.display = webChecked ? '' : 'none';
-            document.getElementById('field-html-output').style.display = htmlChecked ? '' : 'none';
-        }
-
         function updateGenerateButton() {
             var dir = document.getElementById('input-dir').value;
-            var webChecked = document.getElementById('opt-web').checked;
-            var htmlChecked = document.getElementById('opt-html').checked;
-            var anyFormat = webChecked || htmlChecked;
-            var webOk = !webChecked || document.getElementById('input-web-output').value;
-            var htmlOk = !htmlChecked || document.getElementById('input-html-output').value;
-            document.getElementById('btn-generate').disabled = !dir || !anyFormat || !webOk || !htmlOk || generating;
-            updateOutputFields();
+            var anyFormat = document.getElementById('opt-web').checked
+                || document.getElementById('opt-html').checked;
+            document.getElementById('btn-generate').disabled = !dir || !anyFormat || generating;
         }
 
         // --- Logging ---
@@ -1694,16 +1834,28 @@
                 line1.appendChild(document.createTextNode(' ' + t('foldersParen') + ' (' + result.totalSize + ')'));
                 card.appendChild(line1);
 
+                // Saved state per format: direct writes count as saved,
+                // deferred ones only once the user stored them somewhere.
+                var savedTar = result.tarGzPath
+                    ? (result.tarGzDeferred ? result.savedTarGzPath : result.tarGzPath)
+                    : null;
+                var savedHtml = result.htmlPath
+                    ? (result.htmlDeferred ? result.savedHtmlPath : result.htmlPath)
+                    : null;
                 if (result.tarGzPath) {
                     var lineTar = document.createElement('div');
-                    lineTar.className = 'status-line';
-                    lineTar.textContent = 'tar.gz: ' + result.tarGzPath;
+                    lineTar.className = 'status-line ' + (savedTar ? 'ok' : 'warn');
+                    lineTar.textContent = savedTar
+                        ? ('✓ tar.gz: ' + savedTar)
+                        : ('tar.gz: ' + t('notSavedYet'));
                     card.appendChild(lineTar);
                 }
                 if (result.htmlPath) {
                     var lineHtml = document.createElement('div');
-                    lineHtml.className = 'status-line';
-                    lineHtml.textContent = 'HTML: ' + result.htmlPath;
+                    lineHtml.className = 'status-line ' + (savedHtml ? 'ok' : 'warn');
+                    lineHtml.textContent = savedHtml
+                        ? ('✓ HTML: ' + savedHtml)
+                        : ('HTML: ' + t('notSavedYet'));
                     card.appendChild(lineHtml);
                 }
                 if (result.warnings > 0) {
@@ -1721,24 +1873,54 @@
                     card.appendChild(warnLine);
                 }
 
+                // Offer to remember the folder chosen in the Save dialog
+                // (deferred formats only; writes into settings on click).
+                if (result.offerRemember) {
+                    var remLine = document.createElement('div');
+                    remLine.className = 'status-line';
+                    remLine.appendChild(document.createTextNode(t('rememberFolder') + ' '));
+                    var remBtn = document.createElement('button');
+                    remBtn.className = 'btn';
+                    remBtn.textContent = t('yes');
+                    remBtn.onclick = function() { rememberSaveFolder(result.offerRemember); };
+                    remLine.appendChild(remBtn);
+                    card.appendChild(remLine);
+                }
+
                 var actions = document.createElement('div');
                 actions.className = 'status-actions';
-                var btnFolder = document.createElement('button');
-                btnFolder.className = 'btn';
-                btnFolder.textContent = t('openFolder');
-                btnFolder.onclick = function() { openOutputFolder(); };
-                actions.appendChild(btnFolder);
+                if (lastOutputDir) {
+                    var btnFolder = document.createElement('button');
+                    btnFolder.className = 'btn';
+                    btnFolder.textContent = t('openFolder');
+                    btnFolder.onclick = function() { openOutputFolder(); };
+                    actions.appendChild(btnFolder);
+                }
                 if (result.htmlPath) {
                     var btnHtml = document.createElement('button');
                     btnHtml.className = 'btn';
-                    btnHtml.textContent = t('openHtml');
+                    btnHtml.textContent = savedHtml ? t('openHtml') : t('preview');
                     btnHtml.onclick = function() {
                         if (invoke) {
-                            invoke('open_path', { path: result.htmlPath })
+                            // Prefer the saved copy once it exists.
+                            invoke('open_path', { path: savedHtml || result.htmlPath })
                                 .catch(function(e) { logLine('open_path error: ' + e, 'error'); });
                         }
                     };
                     actions.appendChild(btnHtml);
+                    var btnSaveHtml = document.createElement('button');
+                    btnSaveHtml.className = 'btn' + (savedHtml ? '' : ' btn-primary');
+                    btnSaveHtml.textContent = savedHtml ? t('saveHtmlElsewhere') : t('saveHtml');
+                    btnSaveHtml.onclick = function() { saveResult('html'); };
+                    actions.appendChild(btnSaveHtml);
+                }
+                if (result.tarGzPath) {
+                    var btnSaveTar = document.createElement('button');
+                    btnSaveTar.className = 'btn'
+                        + (!savedTar && !(result.htmlPath && !savedHtml) ? ' btn-primary' : '');
+                    btnSaveTar.textContent = savedTar ? t('saveTarGzElsewhere') : t('saveTarGz');
+                    btnSaveTar.onclick = function() { saveResult('tar.gz'); };
+                    actions.appendChild(btnSaveTar);
                 }
                 card.appendChild(actions);
 
@@ -1762,11 +1944,13 @@
 
             var generateWeb = document.getElementById('opt-web').checked;
             var generateHtml = document.getElementById('opt-html').checked;
-            var webOutput = generateWeb ? document.getElementById('input-web-output').value : '';
-            var htmlOutput = generateHtml ? document.getElementById('input-html-output').value : '';
-
-            if (generateWeb && !webOutput) return;
-            if (generateHtml && !htmlOutput) return;
+            // Per-format: configured dir (settings/rules) = direct write,
+            // no dir = deferred (native Save dialog after generation).
+            var dirs = resolveOutputDirs(dir);
+            var webDeferred = generateWeb && !dirs.web;
+            var htmlDeferred = generateHtml && !dirs.html;
+            var webOutput = (generateWeb && !webDeferred) ? dirs.web : '';
+            var htmlOutput = (generateHtml && !htmlDeferred) ? dirs.html : '';
 
             generating = true;
             updateGenerateButton();
@@ -1787,14 +1971,17 @@
                 showPackages: document.getElementById('opt-packages').checked,
                 generateWeb: generateWeb,
                 generateHtml: generateHtml,
-                lang: document.getElementById('opt-lang').value,
+                lang: effectiveCatalogLang(),
                 theme: document.getElementById('opt-theme').value,
+                webDeferred: webDeferred,
+                htmlDeferred: htmlDeferred,
             };
 
-            logLine('D2H v1.6.2-beta', 'info');
+            logLine('D2H v1.7.0-beta', 'info');
             logLine('Source: ' + dir, 'info');
-            if (generateWeb) logLine('Web output: ' + webOutput, 'info');
-            if (generateHtml) logLine('HTML output: ' + htmlOutput, 'info');
+            if (generateWeb) logLine('Web output: ' + (webDeferred ? 'choose after generation' : webOutput), 'info');
+            if (generateHtml) logLine('HTML output: ' + (htmlDeferred ? 'choose after generation' : htmlOutput), 'info');
+            logLine('Catalog language: ' + args.lang, 'info');
             logLine('---');
 
             // Start progress polling
@@ -1836,12 +2023,22 @@
                 }
                 logLine('Done!', 'success');
 
-                lastOutputDir = result.outputDir;
+                // "Open folder" points at a directly-written output only
+                // (deferred files sit in temp until saved).
+                lastOutputDir = null;
+                if (result.tarGzPath && !result.tarGzDeferred) lastOutputDir = parentDir(result.tarGzPath);
+                else if (result.htmlPath && !result.htmlDeferred) lastOutputDir = parentDir(result.htmlPath);
                 setStatus('success', result);
 
-                // Auto-open generated HTML in browser
-                if (result.htmlPath) {
-                    invoke('open_path', { path: result.htmlPath });
+                // Deferred formats: offer the Save dialog right away — nothing
+                // opens unsaved. The saved HTML then opens automatically;
+                // directly-written outputs open only on user action.
+                if (result.htmlDeferred) {
+                    var savedDest = await saveResult('html');
+                    if (savedDest) invoke('open_path', { path: savedDest });
+                }
+                if (result.tarGzDeferred) {
+                    await saveResult('tar.gz');
                 }
 
             } catch (e) {
@@ -1857,6 +2054,122 @@
 
         // --- Actions ---
 
+        // Native Save-as dialog + copy of a generated file (from the temp
+        // result dir, or a copy of a directly-written output). Cancelled
+        // dialog resolves to null; the source stays, so the user can save
+        // repeatedly (e.g. to a second location). Returns a promise with the
+        // saved path (or null).
+        function saveResult(kind) {
+            var result = statusData;
+            if (!result || !invoke) return Promise.resolve(null);
+            var src = kind === 'html' ? result.htmlPath : result.tarGzPath;
+            if (!src) return Promise.resolve(null);
+            var name = result.suggestedName + (kind === 'html' ? '.html' : '.tar.gz');
+            return invoke('save_file_as', { sourcePath: src, suggestedName: name, ext: kind })
+                .then(function(dest) {
+                    if (!dest) return null; // dialog cancelled
+                    var wasDeferred;
+                    if (kind === 'html') {
+                        result.savedHtmlPath = dest;
+                        wasDeferred = result.htmlDeferred;
+                    } else {
+                        result.savedTarGzPath = dest;
+                        wasDeferred = result.tarGzDeferred;
+                    }
+                    // Offer "always save here?" only for deferred formats —
+                    // direct formats already have a configured folder.
+                    if (wasDeferred) result.offerRemember = kind;
+                    logLine(t('savedTo') + ' ' + dest, 'success');
+                    renderStatus();
+                    return dest;
+                })
+                .catch(function(e) {
+                    logLine('Save error: ' + e, 'error');
+                    return null;
+                });
+        }
+
+        // "Always save to this folder?" — write the folder of the last saved
+        // file into settings (user config; an exe-adjacent deployment config
+        // still has priority, so internal setups are unaffected).
+        function rememberSaveFolder(kind) {
+            var result = statusData;
+            if (!result || !invoke) return;
+            var dest = kind === 'html' ? result.savedHtmlPath : result.savedTarGzPath;
+            if (!dest) return;
+            var folder = parentDir(dest);
+            if (!appConfig) appConfig = { branding: {}, defaults: {}, jobId: {} };
+            if (!appConfig.defaults) appConfig.defaults = {};
+            if (kind === 'html') appConfig.defaults.htmlOutputDir = folder;
+            else appConfig.defaults.webOutputDir = folder;
+            invoke('save_config', { config: appConfig })
+                .then(function(savedPath) {
+                    logLine(t('savedTo') + ' ' + savedPath, 'success');
+                    result.offerRemember = null;
+                    renderStatus();
+                })
+                .catch(function(e) { logLine('save_config error: ' + e, 'error'); });
+        }
+
+        function hasUnsavedResult() {
+            if (statusState !== 'success' || !statusData) return false;
+            if (statusData.htmlDeferred && statusData.htmlPath && !statusData.savedHtmlPath) return true;
+            if (statusData.tarGzDeferred && statusData.tarGzPath && !statusData.savedTarGzPath) return true;
+            return false;
+        }
+
+        function showUnsavedModal(win) {
+            if (document.getElementById('unsaved-modal')) return;
+            var modal = document.createElement('div');
+            modal.id = 'unsaved-modal';
+            var overlay = document.createElement('div');
+            overlay.className = 'dialog-overlay';
+            var box = document.createElement('div');
+            box.className = 'dialog-box';
+            var titleEl = document.createElement('div');
+            titleEl.className = 'dialog-title';
+            titleEl.textContent = t('unsavedTitle');
+            var msgEl = document.createElement('div');
+            msgEl.className = 'dialog-message';
+            msgEl.textContent = t('unsavedMsg');
+            var btns = document.createElement('div');
+            btns.className = 'dialog-buttons';
+            var btnBack = document.createElement('button');
+            btnBack.className = 'btn btn-primary';
+            btnBack.textContent = t('goBack');
+            btnBack.addEventListener('click', function() { modal.remove(); });
+            var btnClose = document.createElement('button');
+            btnClose.className = 'btn btn-warning';
+            btnClose.textContent = t('closeAnyway');
+            btnClose.addEventListener('click', function() { win.destroy(); });
+            btns.appendChild(btnBack);
+            btns.appendChild(btnClose);
+            box.appendChild(titleEl);
+            box.appendChild(msgEl);
+            box.appendChild(btns);
+            overlay.appendChild(box);
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) modal.remove();
+            });
+            modal.appendChild(overlay);
+            document.body.appendChild(modal);
+        }
+
+        // Warn before closing the window while a deferred result is unsaved.
+        function setupCloseGuard() {
+            try {
+                if (!(window.__TAURI__ && window.__TAURI__.window && window.__TAURI__.window.getCurrentWindow)) return;
+                var win = window.__TAURI__.window.getCurrentWindow();
+                win.onCloseRequested(function(event) {
+                    if (!hasUnsavedResult()) return;
+                    event.preventDefault();
+                    showUnsavedModal(win);
+                });
+            } catch (e) {
+                logLine('Close guard setup error: ' + e, 'warning');
+            }
+        }
+
         async function openOutputFolder() {
             if (lastOutputDir) {
                 try {
@@ -1868,21 +2181,10 @@
         }
 
         // --- Event Listeners (no inline onclick — Tauri CSP blocks them) ---
-        document.getElementById('btn-browse-dir').addEventListener('click', function() {
+        document.getElementById('drop-zone').addEventListener('click', function() {
             pickDirectory();
         });
-        document.getElementById('btn-browse-web-output').addEventListener('click', function() {
-            pickWebOutputDirectory();
-        });
-        document.getElementById('btn-browse-html-output').addEventListener('click', function() {
-            pickHtmlOutputDirectory();
-        });
-        document.getElementById('input-web-output').addEventListener('input', function() {
-            webOutputManuallySet = true;
-            updateGenerateButton();
-        });
-        document.getElementById('input-html-output').addEventListener('input', function() {
-            htmlOutputManuallySet = true;
+        document.getElementById('input-title').addEventListener('input', function() {
             updateGenerateButton();
         });
         document.getElementById('opt-web').addEventListener('change', function() {
@@ -1892,9 +2194,6 @@
         document.getElementById('opt-html').addEventListener('change', function() {
             syncFormatCards();
             updateGenerateButton();
-        });
-        document.getElementById('opt-lang').addEventListener('change', function() {
-            catalogLangManuallySet = true;
         });
         document.getElementById('btn-generate').addEventListener('click', function() {
             doGenerate();
@@ -2068,6 +2367,75 @@
             bgField.appendChild(bgRow);
             box.appendChild(bgField);
 
+            // --- Catalog language (empty = follow the app UI language) ---
+            var defaults = (appConfig && appConfig.defaults) || {};
+            var langField = document.createElement('div');
+            langField.className = 'cust-field';
+            var langLabel = document.createElement('label');
+            langLabel.textContent = t('catalogLanguage');
+            langField.appendChild(langLabel);
+            var langSel = document.createElement('select');
+            langSel.className = 'd2h-select';
+            var LANG_NAMES = { en: 'English', cz: 'Čeština', de: 'Deutsch', it: 'Italiano', es: 'Español', fr: 'Français', pl: 'Polski' };
+            var optAuto = document.createElement('option');
+            optAuto.value = '';
+            optAuto.textContent = t('sameAsAppLang');
+            langSel.appendChild(optAuto);
+            CATALOG_LANGS.forEach(function(code) {
+                var o = document.createElement('option');
+                o.value = code;
+                o.textContent = LANG_NAMES[code];
+                langSel.appendChild(o);
+            });
+            langSel.value = (defaults.language && CATALOG_LANGS.indexOf(defaults.language) >= 0) ? defaults.language : '';
+            langField.appendChild(langSel);
+            box.appendChild(langField);
+
+            // --- Output directories (empty = ask where to save after generation) ---
+            function makeDirField(labelKey, initial) {
+                var state = { value: initial || null };
+                var field = document.createElement('div');
+                field.className = 'cust-field';
+                var label = document.createElement('label');
+                label.textContent = t(labelKey);
+                field.appendChild(label);
+                var row = document.createElement('div');
+                row.className = 'cust-row';
+                var input = document.createElement('input');
+                input.type = 'text';
+                input.readOnly = true;
+                input.value = state.value || '';
+                input.placeholder = t('askWhenEmpty');
+                row.appendChild(input);
+                var browseBtn = document.createElement('button');
+                browseBtn.className = 'btn';
+                browseBtn.textContent = t('browse');
+                browseBtn.addEventListener('click', function() {
+                    if (!invoke) { logLine('Tauri not ready', 'error'); return; }
+                    invoke('pick_directory', { title: t(labelKey) })
+                        .then(function(p) {
+                            if (p) { state.value = p; input.value = p; }
+                        })
+                        .catch(function(e) { logLine('pick_directory error: ' + e, 'error'); });
+                });
+                row.appendChild(browseBtn);
+                var clearBtn = document.createElement('button');
+                clearBtn.className = 'btn btn-clear';
+                clearBtn.textContent = '×';
+                clearBtn.title = t('clear');
+                clearBtn.addEventListener('click', function() {
+                    state.value = null;
+                    input.value = '';
+                });
+                row.appendChild(clearBtn);
+                field.appendChild(row);
+                return { field: field, state: state };
+            }
+            var htmlDirField = makeDirField('htmlOutputDir', defaults.htmlOutputDir);
+            var webDirField = makeDirField('webOutputDir', defaults.webOutputDir);
+            box.appendChild(htmlDirField.field);
+            box.appendChild(webDirField.field);
+
             // Footer is intentionally NOT editable in the UI — the attribution
             // footer is a plain-text default that advanced users can still
             // change directly in d2h.config.json (branding.footerText/Url/showFooter).
@@ -2077,6 +2445,16 @@
             note.className = 'cust-note';
             note.textContent = t('custNote');
             box.appendChild(note);
+
+            // --- About / support link (opens the About dialog with the QR) ---
+            var aboutLink = document.createElement('div');
+            aboutLink.textContent = t('aboutSupport');
+            aboutLink.style.cssText = 'font-size: 12px; color: var(--accent); cursor: pointer; text-decoration: underline; margin-top: 8px;';
+            aboutLink.addEventListener('click', function() {
+                modal.remove();
+                showAboutModal();
+            });
+            box.appendChild(aboutLink);
 
             // --- Buttons ---
             var btnContainer = document.createElement('div');
@@ -2100,6 +2478,9 @@
 
                 var b = appConfig.branding;
                 b.logoPath = logoValue; // null → default D2H logo
+                appConfig.defaults.htmlOutputDir = htmlDirField.state.value;
+                appConfig.defaults.webOutputDir = webDirField.state.value;
+                appConfig.defaults.language = langSel.value || null;
                 if (bgDirty) {
                     b.headerBackground = gradCheck.checked
                         ? 'linear-gradient(45deg, ' + color1.value + ' 0%, ' + color2.value + ' 100%)'

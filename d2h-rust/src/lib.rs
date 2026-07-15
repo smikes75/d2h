@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 pub const APP_NAME: &str = "D2H";
-pub const APP_VERSION: &str = "1.6.2-beta";
+pub const APP_VERSION: &str = "1.7.0-beta";
 pub const CHUNK_SIZE: usize = 100;
 
 const PACKAGE_EXTENSIONS: &[&str] = &[
@@ -127,7 +127,9 @@ impl Default for Branding {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Defaults {
-    pub language: String,
+    /// Catalog (output) language override for the GUI.
+    /// None = follow the app UI language. CLI uses its own --lang flag.
+    pub language: Option<String>,
     pub theme: String,
     /// UI language override for the GUI (en/cz/de/it/es/fr/pl).
     /// None = auto-detect from the OS locale.
@@ -139,7 +141,7 @@ pub struct Defaults {
 impl Default for Defaults {
     fn default() -> Self {
         Self {
-            language: "en".to_string(),
+            language: None,
             theme: "default".to_string(),
             ui_language: None,
             web_output_dir: None,
@@ -1881,35 +1883,13 @@ fn canonicalize_lenient(path: &Path) -> PathBuf {
     path.to_path_buf()
 }
 
-/// Check if output_dir is safe to use (not the same as source, not a parent of source,
-/// not a system directory).
-pub fn validate_output_dir(source_dir: &Path, output_dir: &Path) -> Result<(), String> {
-    let source = canonicalize_lenient(source_dir);
+/// Check if output_dir is safe to use (not a system directory).
+///
+/// Writing into (or below, or above) the scanned directory is allowed: the
+/// scan completes fully in memory before any output file is written, so the
+/// output can never include itself.
+pub fn validate_output_dir(_source_dir: &Path, output_dir: &Path) -> Result<(), String> {
     let output = canonicalize_lenient(output_dir);
-
-    // Windows filesystems are case-insensitive — compare lowercased paths.
-    // Path-based (component-wise) starts_with avoids false prefix matches
-    // like "C:\Web" vs "C:\Web_Archive".
-    #[cfg(target_os = "windows")]
-    let (source_cmp, output_cmp) = (
-        PathBuf::from(source.to_string_lossy().replace('/', "\\").to_lowercase()),
-        PathBuf::from(output.to_string_lossy().replace('/', "\\").to_lowercase()),
-    );
-    #[cfg(not(target_os = "windows"))]
-    let (source_cmp, output_cmp) = (source.clone(), output.clone());
-
-    // Same directory
-    if source_cmp == output_cmp {
-        return Err("Output directory cannot be the same as source directory.".to_string());
-    }
-
-    // Output is parent of source (source is inside output)
-    if source_cmp.starts_with(&output_cmp) {
-        return Err(format!(
-            "Output directory '{}' is a parent of the source directory. This would include source files in the output.",
-            output_dir.display()
-        ));
-    }
 
     // System directories protection
     let output_str = output.to_string_lossy().to_string();
@@ -2087,5 +2067,28 @@ mod tests {
     #[test]
     fn format_number_thousands() {
         assert_eq!(format_number(1234567), "1,234,567");
+    }
+
+    #[test]
+    fn output_dir_validation() {
+        let tmp = std::env::temp_dir().join("d2h_validate_test");
+        let _ = fs::create_dir_all(tmp.join("sub"));
+
+        // Same dir, subdirectory and parent of source are all allowed —
+        // the scan finishes before anything is written.
+        assert!(validate_output_dir(&tmp, &tmp).is_ok());
+        assert!(validate_output_dir(&tmp, &tmp.join("sub")).is_ok());
+        assert!(validate_output_dir(&tmp.join("sub"), &tmp).is_ok());
+
+        // System directories stay blocked.
+        #[cfg(not(target_os = "windows"))]
+        {
+            assert!(validate_output_dir(&tmp, Path::new("/")).is_err());
+            assert!(validate_output_dir(&tmp, Path::new("/Users")).is_err());
+        }
+        #[cfg(target_os = "windows")]
+        assert!(validate_output_dir(&tmp, Path::new("C:\\")).is_err());
+
+        let _ = fs::remove_dir_all(&tmp);
     }
 }

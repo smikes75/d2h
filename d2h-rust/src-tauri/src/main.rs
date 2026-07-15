@@ -268,6 +268,12 @@ struct GenerateResult {
     warning_messages: Vec<String>,
     tar_gz_path: Option<String>,
     html_path: Option<String>,
+    /// Per-format deferred flags: the file lives in a temp result dir and the
+    /// user saves it explicitly afterwards (no output dir in config/settings).
+    tar_gz_deferred: bool,
+    html_deferred: bool,
+    /// Base file name (job number or source dir name) to prefill Save dialogs.
+    suggested_name: String,
 }
 
 /// First N warning texts for display in the GUI log (mirrors the CLI cap).
@@ -293,25 +299,32 @@ fn pick_directory(title: String) -> Option<String> {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ConfigInfo {
     config: Config,
     path: Option<String>,
     error: Option<String>,
+    /// Real OS locale (e.g. "cs-CZ") — navigator.language inside the WebView
+    /// follows the app bundle localization, not the system setting.
+    os_locale: Option<String>,
 }
 
 /// Return the effective config (branding, defaults, job-id rules) to the frontend.
 #[tauri::command]
 fn get_config() -> ConfigInfo {
+    let os_locale = sys_locale::get_locale();
     match Config::load(None) {
         Ok((config, path)) => ConfigInfo {
             config,
             path: path.map(|p| p.to_string_lossy().to_string()),
             error: None,
+            os_locale,
         },
         Err(e) => ConfigInfo {
             config: Config::default(),
             path: None,
             error: Some(e),
+            os_locale,
         },
     }
 }
@@ -360,6 +373,87 @@ fn open_path(path: String) {
 }
 
 // ============================================================================
+// DEFERRED RESULT DIRS (temp workspace for "save later" mode)
+// ============================================================================
+
+/// Remove deferred result dirs in the system temp: always this process's
+/// previous ones; with `all_own` false also stale dirs (>24 h) from crashed
+/// or killed sessions of any process.
+fn cleanup_result_dirs(all_own: bool) {
+    let own_prefix = format!("d2h_result_{}_", std::process::id());
+    if let Ok(entries) = fs::read_dir(std::env::temp_dir()) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !name.starts_with("d2h_result_") {
+                continue;
+            }
+            if name.starts_with(&own_prefix) {
+                let _ = fs::remove_dir_all(entry.path());
+            } else if !all_own {
+                if let Ok(meta) = entry.metadata() {
+                    if let Ok(modified) = meta.modified() {
+                        let age = std::time::SystemTime::now()
+                            .duration_since(modified)
+                            .unwrap_or_default()
+                            .as_secs();
+                        if age > 24 * 3600 {
+                            let _ = fs::remove_dir_all(entry.path());
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Create a fresh temp dir for a deferred run's outputs. Cleans up this
+/// process's previous result dir first (the success card only ever shows
+/// the latest run) plus stale dirs from dead sessions.
+fn create_result_dir() -> Result<PathBuf, String> {
+    cleanup_result_dirs(false);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let dir = std::env::temp_dir().join(format!("d2h_result_{}_{}", std::process::id(), now));
+    fs::create_dir_all(&dir).map_err(|e| format!("Failed to create temp result dir: {}", e))?;
+    Ok(dir)
+}
+
+/// Native "Save as" dialog + copy of a generated temp file to the chosen
+/// destination. `ext` is "html" or "tar.gz". Returns None when cancelled;
+/// the source stays in temp so the user can save again elsewhere.
+#[tauri::command]
+fn save_file_as(source_path: String, suggested_name: String, ext: String) -> Result<Option<String>, String> {
+    let src = PathBuf::from(&source_path);
+    if !src.is_file() {
+        return Err(format!("Generated file no longer exists: {}", source_path));
+    }
+    let (filter_name, filter_exts): (&str, &[&str]) = if ext == "tar.gz" {
+        ("Web package (*.tar.gz)", &["gz"])
+    } else {
+        ("HTML file (*.html)", &["html"])
+    };
+    let picked = rfd::FileDialog::new()
+        .set_file_name(&suggested_name)
+        .add_filter(filter_name, filter_exts)
+        .save_file();
+    let mut dest = match picked {
+        Some(p) => p,
+        None => return Ok(None),
+    };
+    let suffix = format!(".{}", ext);
+    if !dest.to_string_lossy().to_lowercase().ends_with(&suffix) {
+        let mut s = dest.into_os_string();
+        s.push(&suffix);
+        dest = PathBuf::from(s);
+    }
+    fs::copy(&src, &dest)
+        .map_err(|e| format!("Failed to save to {}: {}", dest.display(), e))?;
+    Ok(Some(dest.to_string_lossy().to_string()))
+}
+
+// ============================================================================
 // GENERATE COMMANDS
 // ============================================================================
 
@@ -369,6 +463,12 @@ struct GenerateArgs {
     dir: String,
     web_output: String,
     html_output: String,
+    /// Per-format deferred-save mode: generate into a temp result dir,
+    /// the user saves the file later via a native dialog.
+    #[serde(default)]
+    web_deferred: bool,
+    #[serde(default)]
+    html_deferred: bool,
     title: Option<String>,
     hidden: bool,
     include_zero_size: bool,
@@ -469,18 +569,34 @@ fn do_generate(
                 .unwrap_or_else(|| "root".to_string())
         });
 
-    // Output destinations come directly from GUI
+    // Output destinations, decided per format: configured dir in direct mode,
+    // a fresh temp result dir in deferred mode (user saves explicitly later).
+    let web_deferred = args.generate_web && args.web_deferred;
+    let html_deferred = args.generate_html && args.html_deferred;
+    let result_dir = if web_deferred || html_deferred {
+        Some(create_result_dir()?)
+    } else {
+        None
+    };
     let tar_gz_dest = if args.generate_web {
-        let p = PathBuf::from(&args.web_output);
-        validate_output_dir(&dir_path, &p)?;
-        p
+        if web_deferred {
+            result_dir.clone().unwrap()
+        } else {
+            let p = PathBuf::from(&args.web_output);
+            validate_output_dir(&dir_path, &p)?;
+            p
+        }
     } else {
         PathBuf::new()
     };
     let html_dest = if args.generate_html {
-        let p = PathBuf::from(&args.html_output);
-        validate_output_dir(&dir_path, &p)?;
-        p
+        if html_deferred {
+            result_dir.clone().unwrap()
+        } else {
+            let p = PathBuf::from(&args.html_output);
+            validate_output_dir(&dir_path, &p)?;
+            p
+        }
     } else {
         PathBuf::new()
     };
@@ -500,10 +616,14 @@ fn do_generate(
     let tar_gz_name = case_name.clone();
     let html_name = case_name.clone();
 
-    let case_id = tar_gz_dest
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| "output".to_string());
+    let case_id = if web_deferred {
+        case_name.clone()
+    } else {
+        tar_gz_dest
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "output".to_string())
+    };
 
     let scan_opts = ScanOptions {
         dir: dir_path,
@@ -567,7 +687,7 @@ fn do_generate(
     // Validate web output name as job number (only when it LOOKS like one
     // per the configured warn pattern but doesn't match the valid pattern)
     let mut tar_gz_name = tar_gz_name;
-    if args.generate_web && looks_like_invalid_job_id(&tar_gz_name, &config) {
+    if args.generate_web && !web_deferred && looks_like_invalid_job_id(&tar_gz_name, &config) {
         let format_hint = config
             .job_id
             .description
@@ -578,14 +698,24 @@ fn do_generate(
         }
     }
 
-    // Resolve output names — ask user on collision (overwrite / rename)
+    // Resolve output names — ask user on collision (overwrite / rename).
+    // Deferred mode writes into a fresh temp dir: collisions are impossible
+    // and the real name is chosen later in the Save dialog.
     let tar_output_name = if args.generate_web {
-        resolve_output_name(&tar_gz_dest, &tar_gz_name, &["tar.gz"], &progress, &rx)?
+        if web_deferred {
+            tar_gz_name.clone()
+        } else {
+            resolve_output_name(&tar_gz_dest, &tar_gz_name, &["tar.gz"], &progress, &rx)?
+        }
     } else {
         String::new()
     };
     let html_output_name = if args.generate_html {
-        resolve_output_name(&html_dest, &html_name, &["html"], &progress, &rx)?
+        if html_deferred {
+            html_name.clone()
+        } else {
+            resolve_output_name(&html_dest, &html_name, &["html"], &progress, &rx)?
+        }
     } else {
         String::new()
     };
@@ -727,9 +857,9 @@ fn do_generate(
     };
 
     let output_dir_str = if args.generate_web {
-        args.web_output.clone()
+        tar_gz_dest.to_string_lossy().to_string()
     } else {
-        args.html_output.clone()
+        html_dest.to_string_lossy().to_string()
     };
 
     let result = GenerateResult {
@@ -744,6 +874,9 @@ fn do_generate(
         warning_messages: warning_messages_capped(&scan.warnings),
         tar_gz_path: final_tar_gz_path,
         html_path: final_html_path,
+        tar_gz_deferred: web_deferred,
+        html_deferred,
+        suggested_name: case_name.clone(),
     };
 
     {
@@ -807,12 +940,24 @@ fn main() {
             answer_dialog,
             get_config,
             save_config,
-            pick_file
+            pick_file,
+            save_file_as
         ])
-        .run(tauri::generate_context!());
+        .build(tauri::generate_context!());
+
+    let result = result.map(|app| {
+        app.run(|_app_handle, event| {
+            if let tauri::RunEvent::Exit = event {
+                // Drop unsaved deferred results of this session.
+                cleanup_result_dirs(true);
+            }
+        });
+    });
 
     if let Err(e) = result {
         let err_msg = e.to_string();
+        #[cfg(not(target_os = "windows"))]
+        eprintln!("D2H failed to start: {}", err_msg);
 
         #[cfg(target_os = "windows")]
         {

@@ -8,7 +8,7 @@
     "showFooter": true
   },
   "defaults": {
-    "language": "en",
+    "language": null,
     "theme": "default",
     "webOutputDir": "D:\\Output\\Web",
     "htmlOutputDir": "D:\\Output\\Html"
